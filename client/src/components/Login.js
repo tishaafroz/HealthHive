@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import '../styles/Auth.css';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -31,39 +32,43 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <h2>Login to HealthTracker Pro</h2>
-      {error && <div className="error-message">{error}</div>}
-      
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>Email:</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Password:</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <button type="submit">Login</button>
-      </form>
-      
-      <p>
-        Don't have an account? <Link to="/register">Register here</Link>
-      </p>
+    <div className="auth-bg">
+      <div className="auth-card login-container">
+        <h2>Login to HealthHive</h2>
+        {error && <div className="error-message">{error}</div>}
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="login-email">Email:</label>
+            <input
+              id="login-email"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="auth-input"
+              autoComplete="username"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="login-password">Password:</label>
+            <input
+              id="login-password"
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="auth-input"
+              autoComplete="current-password"
+            />
+          </div>
+          <button type="submit" className="auth-btn">Login</button>
+        </form>
+        <p className="auth-link">
+          Don't have an account? <Link to="/register">Register here</Link>
+        </p>
+      </div>
     </div>
   );
 };
