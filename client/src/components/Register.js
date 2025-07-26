@@ -26,11 +26,18 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
-    const result = await register(formData);
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setError(result.message);
+    try {
+      const result = await register(formData);
+      console.log('Register result:', result); // Log the result for debugging
+
+      if (result && result.success) {
+        navigate('/login');
+      } else {
+        setError(result?.message || 'Registration failed. Please try again.');
+      }
+    } catch (err) {
+      setError('Unexpected error occurred. Please try again.');
+      console.error('Registration error:', err);
     }
   };
 

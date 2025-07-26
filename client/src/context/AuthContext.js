@@ -1,112 +1,106 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
 
-const authReducer = (state, action) => {
-  switch (action.type) {
-    case 'LOGIN_SUCCESS':
-      return {
-        ...state,
-        token: action.payload.token,
-        user: action.payload.user,
-        isAuthenticated: true,
-        loading: false
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        token: null,
-        user: null,
-        isAuthenticated: false,
-        loading: false
-      };
-    case 'SET_LOADING':
-      return {
-        ...state,
-        loading: action.payload
-      };
-    default:
-      return state;
-  }
-};
-
 export const AuthProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, {
-    token: localStorage.getItem('token'),
-    user: null,
-    isAuthenticated: false,
-    loading: true
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [profileComplete, setProfileComplete] = useState(null);
 
-  // Set auth token in axios headers
-  if (state.token) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
-  }
+  // Fetch user and profile status on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await axios.get('/api/auth/me'); // Adjust if your endpoint is different
+        setUser(res.data);
+        setIsAuthenticated(true);
+        await refreshProfileStatus();
+      } catch {
+        setIsAuthenticated(false);
+        setUser(null);
+        setProfileComplete(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
 
-  const login = async (email, password) => {
+  // Function to refresh profile status (call after profile update)
+  const refreshProfileStatus = async () => {
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
-        email,
-        password
-      });
-
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: res.data
-      });
-
-      localStorage.setItem('token', res.data.token);
-      return { success: true };
-    } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Login failed' 
-      };
+      const res = await axios.get('/api/users/profile/status');
+      setProfileComplete(res.data.isComplete);
+    } catch {
+      setProfileComplete(false);
     }
   };
 
-  const register = async (userData) => {
+  // Example login function
+  const login = async (credentials) => {
+    setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/register', userData);
-
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: res.data
-      });
-
-      localStorage.setItem('token', res.data.token);
-      return { success: true };
-    } catch (error) {
+      await axios.post('/api/auth/login', credentials);
+      setIsAuthenticated(true);
+      await refreshProfileStatus();
+      return { success: true, message: 'Login successful' };
+    } catch (err) {
+      setIsAuthenticated(false);
+      setProfileComplete(false);
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Registration failed' 
+        message: err.response?.data?.message || 'Login failed'
       };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = () => {
-    dispatch({ type: 'LOGOUT' });
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+  // Example logout function
+  const logout = async () => {
+    await axios.post('/api/auth/logout');
+    setIsAuthenticated(false);
+    setUser(null);
+    setProfileComplete(null);
+  };
+
+  const register = async (credentials) => {
+    setLoading(true);
+    try {
+      await axios.post('/api/auth/register', credentials);
+      setIsAuthenticated(true);
+      await refreshProfileStatus();
+      return { success: true, message: 'Registration successful' };
+    } catch (err) {
+      console.error('Registration error:', err.response?.data || err.message); // <-- Add this line
+      setIsAuthenticated(false);
+      setProfileComplete(false);
+      return { 
+        success: false, 
+        message: err.response?.data?.message || 'Registration failed' 
+      };
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AuthContext.Provider value={{
-      ...state,
+      isAuthenticated,
+      loading,
+      user,
+      profileComplete,
+      refreshProfileStatus,
       login,
       register,
-      logout
+      logout,
+      setUser
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);

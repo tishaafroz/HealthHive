@@ -1,17 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import ProfileSetup from './components/ProfileSetup';
+import SmartRoute from './components/SmartRoute'; // <-- Import here
 import './App.css';
-
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) return <div>Loading...</div>;
-  return isAuthenticated ? children : <Navigate to="/login" />;
-};
 
 function App() {
   return (
@@ -22,9 +17,14 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={
-              <ProtectedRoute>
+              <SmartRoute requireProfileComplete={true}>
                 <Dashboard />
-              </ProtectedRoute>
+              </SmartRoute>
+            } />
+            <Route path="/profile-setup" element={
+              <SmartRoute requireProfileComplete={false}>
+                <ProfileSetup />
+              </SmartRoute>
             } />
             <Route path="/" element={<Navigate to="/dashboard" />} />
           </Routes>
