@@ -1,35 +1,36 @@
-import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { Navigate } from 'react-router-dom';
 
-const SmartRoute = ({ children, requireProfileComplete }) => {
-  const { isAuthenticated, loading } = useAuth();
-  const [profileComplete, setProfileComplete] = useState(null);
-  const [checking, setChecking] = useState(true);
-  const location = useLocation();
+const SmartRoute = ({ children, requireProfileComplete = true }) => {
+  const { isAuthenticated, loading, profileComplete } = useAuth();
 
-  useEffect(() => {
-    const checkProfile = async () => {
-      if (isAuthenticated) {
-        try {
-          const res = await axios.get('/api/users/profile/status');
-          setProfileComplete(res.data.isComplete);
-        } catch {
-          setProfileComplete(false);
-        }
-      }
-      setChecking(false);
-    };
-    checkProfile();
-  }, [isAuthenticated]);
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
-  if (loading || (isAuthenticated && checking)) return <div>Loading...</div>;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
 
-  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} />;
-  if (requireProfileComplete && !profileComplete) return <Navigate to="/profile-setup" />;
-  if (!requireProfileComplete && profileComplete) return <Navigate to="/dashboard" />;
+  // If profile completion is not required, just render the children
+  if (!requireProfileComplete) {
+    return children;
+  }
+
+  // If profile completion is required but profile is incomplete, redirect to profile setup
+  if (requireProfileComplete && profileComplete === false) {
+    return <Navigate to="/profile-setup" />;
+  }
+
+  // If profile completion is required and profile is complete, render the children
+  if (requireProfileComplete && profileComplete === true) {
+    return children;
+  }
+
+  // Default case: render children (for when profileComplete is null/undefined)
+  // This allows access to dashboard even when profile status is unknown
   return children;
 };
 
-export default SmartRoute; 
+export default SmartRoute; // ✅ Only one export statement 

@@ -14,6 +14,9 @@ router.put('/profile', auth, userController.updateUserProfile);
 // Get profile completion status
 router.get('/profile/status', auth, userController.getUserProfileStatus);
 
+// Mark profile as complete/incomplete
+router.put('/profile/complete', auth, userController.updateProfileCompletion);
+
 // (Optional) Add more endpoints for goals or profile completion if needed
 // router.put('/goals', auth, userController.updateUserGoals);
 // router.get('/profile/complete', auth, userController.checkProfileComplete);

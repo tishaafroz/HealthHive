@@ -93,3 +93,14 @@ const loginUser = async (req, res) => {
 };
 
 module.exports = { registerUser, loginUser };
+const logoutUser = async (req, res) => {
+  try {
+    // Since JWT is stateless, we just send a success response
+    // The client will remove the token from localStorage
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { registerUser, loginUser, logoutUser };

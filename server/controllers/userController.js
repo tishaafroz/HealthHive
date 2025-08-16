@@ -139,3 +139,35 @@ exports.getUserProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error.', error: err.message });
   }
 };
+
+// Mark profile as complete/incomplete
+exports.updateProfileCompletion = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { profileCompleted, profileCompletionPercentage } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { 
+        profileCompleted: profileCompleted || false,
+        profileCompletionPercentage: profileCompletionPercentage || 0,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      data: user,
+      message: 'Profile completion status updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Update profile completion error:', error);
+    res.status(500).json({ message: 'Server error while updating profile completion' });
+  }
+};

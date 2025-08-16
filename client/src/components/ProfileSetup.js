@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import PersonalDetails from './PersonalDetails';
 import GoalSetting from './GoalSetting';
@@ -35,6 +37,8 @@ function formatKey(key) {
 }
 
 const ProfileSetup = () => {
+  const { refreshProfileStatus } = useAuth();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [profileData, setProfileData] = useState(() => {
     const saved = localStorage.getItem('profileData');
@@ -112,16 +116,69 @@ const ProfileSetup = () => {
     setLoading(true);
     setApiError('');
     setSuccess('');
+    
     try {
+      // First, update the user profile
       await axios.put('/api/users/profile', profileData);
+      
+      // Mark profile as complete
+      await axios.put('/api/users/profile/complete', { profileCompleted: true });
+      
       setSuccess('Profile completed successfully!');
       localStorage.removeItem('profileData');
       setShowConfetti(true);
+      
+      // Refresh profile status
+      await refreshProfileStatus();
+      
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+      
     } catch (err) {
-      setApiError(err.response?.data?.message || 'Failed to save profile.');
+      console.error('Profile save error:', err);
+      setApiError(err.response?.data?.message || 'Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkipProfile = async () => {
+    console.log('Skip profile clicked');
+    setLoading(true);
+    
+    try {
+      // Mark profile as incomplete but allow access to dashboard
+      await axios.put('/api/users/profile/complete', { 
+        profileCompleted: false,
+        profileCompletionPercentage: 0
+      });
+      
+      console.log('Profile marked as incomplete');
+      
+      // Refresh profile status
+      await refreshProfileStatus();
+      
+      console.log('Profile status refreshed, navigating to dashboard...');
+      
+      // Navigate to dashboard
+      navigate('/dashboard');
+      
+    } catch (err) {
+      console.error('Skip profile error:', err);
+      // Even if there's an error, navigate to dashboard
+      console.log('Error occurred, but still navigating to dashboard...');
+      navigate('/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Alternative method using window.location if navigate doesn't work
+  const forceRedirectToDashboard = () => {
+    console.log('Force redirect to dashboard');
+    window.location.href = '/dashboard';
   };
 
   const renderStep = () => {
@@ -226,6 +283,31 @@ const ProfileSetup = () => {
             : steps[currentStep]}
         </h1>
         {renderStep()}
+        
+        {/* Skip Profile Button - Show on all steps */}
+        <div className="skip-profile-section">
+          <button 
+            onClick={handleSkipProfile}
+            className="skip-profile-btn"
+            disabled={loading}
+          >
+            {loading ? 'Redirecting...' : 'Setup Profile Later'}
+          </button>
+          
+          {/* Fallback button if the first one doesn't work */}
+          <button 
+            onClick={forceRedirectToDashboard}
+            className="skip-profile-btn fallback-btn"
+            style={{ marginLeft: '10px' }}
+          >
+            Go to Dashboard (Fallback)
+          </button>
+          
+          <p className="skip-profile-text">
+            You can always complete your profile later from the dashboard
+          </p>
+        </div>
+        
         <div className="navigation-buttons" style={{ marginTop: 20 }}>
           {currentStep > 0 && (
             <button onClick={handleBack} disabled={loading}>Back</button>
@@ -234,7 +316,7 @@ const ProfileSetup = () => {
             <button onClick={handleNext} disabled={loading || Object.keys(errors).length > 0}>
               Next
             </button>
-          )}
+            )}
           {currentStep === steps.length - 1 && (
             <button onClick={handleSubmit} disabled={loading || Object.keys(errors).length > 0}>
               {loading ? 'Saving...' : 'Finish'}
