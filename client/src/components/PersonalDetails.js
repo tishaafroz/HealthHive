@@ -61,49 +61,77 @@ const PersonalDetails = ({ data = {}, onUpdate, errors = {} }) => {
   };
 
   return (
-    <div className="personal-details-step">
-      <h3>Personal Information</h3>
-      <p>Please provide your basic information to help us personalize your experience.</p>
-      
-      <div className="form-fields">
-        <NumberStepper
-          label="Age"
-          value={safeData.age}
-          onChange={val => handleChange('age', val)}
-          min={13}
-          max={120}
-          error={errors.age}
-        />
-        <NumberStepper
-          label="Height"
-          value={safeData.height}
-          onChange={val => handleChange('height', val)}
-          min={50}
-          max={300}
-          error={errors.height}
-          unit="cm"
-        />
-        <NumberStepper
-          label="Weight"
-          value={safeData.weight}
-          onChange={val => handleChange('weight', val)}
-          min={20}
-          max={500}
-          error={errors.weight}
-          unit="kg"
-        />
-        <div className="floating-label-group">
-          <select
-            value={safeData.gender}
-            onChange={e => handleChange('gender', e.target.value)}
-            required
-          >
-            <option value="">Select gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          <label className="floating-label">Gender</label>
+    <div className="mobile-form-container">
+      <div className="form-grid">
+        <div className="form-field-group">
+          <label className="field-label">Age</label>
+          <div className="stepper-container">
+            <NumberStepper
+              label=""
+              value={safeData.age}
+              onChange={val => handleChange('age', val)}
+              min={13}
+              max={120}
+              error={errors.age}
+            />
+          </div>
+        </div>
+
+        <div className="form-field-group">
+          <label className="field-label">Height (cm)</label>
+          <div className="stepper-container">
+            <NumberStepper
+              label=""
+              value={safeData.height}
+              onChange={val => handleChange('height', val)}
+              min={50}
+              max={300}
+              error={errors.height}
+              unit="cm"
+            />
+          </div>
+        </div>
+
+        <div className="form-field-group">
+          <label className="field-label">Weight (kg)</label>
+          <div className="stepper-container">
+            <NumberStepper
+              label=""
+              value={safeData.weight}
+              onChange={val => handleChange('weight', val)}
+              min={20}
+              max={500}
+              error={errors.weight}
+              unit="kg"
+            />
+          </div>
+        </div>
+
+        <div className="form-field-group">
+          <label className="field-label">Gender</label>
+          <div className="gender-options">
+            <div 
+              className={`gender-card ${safeData.gender === 'female' ? 'selected' : ''}`}
+              onClick={() => handleChange('gender', 'female')}
+            >
+              <div className="gender-icon">♀</div>
+              <span>Female</span>
+            </div>
+            <div 
+              className={`gender-card ${safeData.gender === 'male' ? 'selected' : ''}`}
+              onClick={() => handleChange('gender', 'male')}
+            >
+              <div className="gender-icon">♂</div>
+              <span>Male</span>
+            </div>
+            <div 
+              className={`gender-card ${safeData.gender === 'other' ? 'selected' : ''}`}
+              onClick={() => handleChange('gender', 'other')}
+            >
+              <div className="gender-icon">⚧</div>
+              <span>Other</span>
+            </div>
+          </div>
           {errors.gender && <div className="error">{errors.gender}</div>}
         </div>
       </div>

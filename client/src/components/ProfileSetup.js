@@ -53,24 +53,6 @@ const ProfileSetup = () => {
   const [loading, setLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Get step icon based on step name
-  const getStepIcon = (stepName) => {
-    switch (stepName) {
-      case 'Personal Details':
-        return <FaUser className="step-icon" />;
-      case 'Activity Level':
-        return <FaRunning className="step-icon" />;
-      case 'Goals':
-        return <FaBullseye className="step-icon" />;
-      case 'Dietary Preferences':
-        return <FaUtensils className="step-icon" />;
-      case 'Review & Complete':
-        return <FaCheckCircle className="step-icon" />;
-      default:
-        return <FaUser className="step-icon" />;
-    }
-  };
-
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -80,12 +62,6 @@ const ProfileSetup = () => {
   const handlePrevious = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleStepClick = (stepIndex) => {
-    if (stepIndex <= currentStep) {
-      setCurrentStep(stepIndex);
     }
   };
 
@@ -290,138 +266,75 @@ const ProfileSetup = () => {
         />
       )}
       
-      <div className="profile-setup-container">
-        {/* Header Section */}
-        <div className="profile-setup-header">
-          <div className="header-content">
-            <div className="header-badge">
-              <FaUser className="badge-icon" />
-              <span>Profile Setup</span>
-            </div>
-            <h1>Complete Your Health Profile</h1>
-            <p>Let's personalize your journey to better health with a few quick questions</p>
-            
-            {/* Progress Bar */}
-            <div className="progress-container">
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill"
-                  style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-                ></div>
-              </div>
-              <span className="progress-text">
-                Step {currentStep + 1} of {steps.length}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="profile-setup-content">
-          {/* Enhanced Step Indicator */}
-          <div className="step-indicator">
-            {steps.map((step, index) => (
+      <div className="mobile-inspired-container">
+        {/* Header with Back Button */}
+        <div className="mobile-header">
+          {currentStep > 0 && (
+            <button className="back-btn" onClick={handlePrevious}>
+              <FaArrowLeft />
+            </button>
+          )}
+          <div className="progress-dots">
+            {steps.map((_, index) => (
               <div
                 key={index}
-                className={`step ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''} ${index > currentStep ? 'upcoming' : ''}`}
-                onClick={() => handleStepClick(index)}
-              >
-                <div className="step-connector"></div>
-                <div className="step-circle">
-                  <div className="step-number">
-                    {index < currentStep ? (
-                      <FaCheckCircle className="step-check" />
-                    ) : (
-                      <span>{index + 1}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="step-info">
-                  <div className="step-icon-wrapper">
-                    {getStepIcon(step)}
-                  </div>
-                  <span className="step-title">{step}</span>
-                  <span className="step-subtitle">
-                    {index === currentStep ? 'Current' : 
-                     index < currentStep ? 'Completed' : 'Upcoming'}
-                  </span>
-                </div>
-              </div>
+                className={`progress-dot ${index <= currentStep ? 'active' : ''}`}
+              ></div>
             ))}
           </div>
+          <div className="header-spacer"></div>
+        </div>
 
-          {/* Step Content with Animation */}
-          <div className="step-content-wrapper">
-            <div className={`step-content step-${currentStep}`}>
-              <div className="step-header">
-                <div className="step-icon-large">
-                  {getStepIcon(steps[currentStep])}
-                </div>
-                <h2>{steps[currentStep]}</h2>
-              </div>
-              
-              <div className="step-body">
-                {renderStepContent()}
-              </div>
-            </div>
+        {/* Main Question Card */}
+        <div className="question-card">
+          <div className="question-header">
+            <h1 className="question-title">
+              {currentStep === 0 && "What's your personal info?"}
+              {currentStep === 1 && "What's your activity level?"}
+              {currentStep === 2 && "What's your goal?"}
+              {currentStep === 3 && "Your dietary preferences?"}
+              {currentStep === 4 && "Review your profile"}
+            </h1>
+            <p className="question-subtitle">
+              {currentStep === 0 && "Let's start with some basic details"}
+              {currentStep === 1 && "This helps us personalize your plan"}
+              {currentStep === 2 && "What would you like to achieve?"}
+              {currentStep === 3 && "Any dietary restrictions or preferences?"}
+              {currentStep === 4 && "Let's make sure everything looks good"}
+            </p>
           </div>
 
-          {/* Enhanced Navigation */}
-          <div className="step-navigation">
-            <div className="nav-left">
-              {currentStep > 0 && (
-                <button 
-                  className="btn btn-outline btn-nav"
-                  onClick={handlePrevious}
-                >
-                  <FaArrowLeft className="btn-icon" />
-                  <span>Previous</span>
-                </button>
-              )}
-            </div>
-            
-            <div className="nav-center">
-              <div className="step-dots">
-                {steps.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`dot ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}`}
-                    onClick={() => handleStepClick(index)}
-                  ></div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="nav-right">
-              {currentStep < steps.length - 1 ? (
-                <button 
-                  className="btn btn-primary btn-nav"
-                  onClick={handleNext}
-                >
-                  <span>Next</span>
-                  <FaArrowRight className="btn-icon" />
-                </button>
-              ) : (
-                <button 
-                  className="btn btn-success btn-nav btn-complete"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                >
-                  <FaCheckCircle className="btn-icon" />
-                  <span>{loading ? 'Saving...' : 'Complete Setup'}</span>
-                </button>
-              )}
-            </div>
+          <div className="question-content">
+            {renderStepContent()}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="profile-setup-footer">
+        {/* Bottom Navigation */}
+        <div className="bottom-navigation">
+          {currentStep === steps.length - 1 ? (
+            <button 
+              className="continue-btn complete-btn"
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              <span>{loading ? 'Saving...' : 'Complete Setup'}</span>
+              <FaCheckCircle className="btn-icon" />
+            </button>
+          ) : (
+            <button 
+              className="continue-btn"
+              onClick={handleNext}
+            >
+              <span>Continue</span>
+              <FaArrowRight className="btn-icon" />
+            </button>
+          )}
+          
           <button 
-            className="btn btn-ghost"
+            className="skip-btn"
             onClick={handleSetupLater}
           >
-            I'll complete this later
+            Skip for now
           </button>
         </div>
       </div>

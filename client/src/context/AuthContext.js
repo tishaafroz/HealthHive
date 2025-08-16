@@ -86,6 +86,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Function to update profile completion status
+  const updateProfileComplete = (status) => {
+    setProfileComplete(status);
+  };
+
   return (
     <AuthContext.Provider value={{
       isAuthenticated,
@@ -93,6 +98,7 @@ export const AuthProvider = ({ children }) => {
       user,
       profileComplete,
       refreshProfileStatus,
+      updateProfileComplete,
       login,
       register,
       logout,
