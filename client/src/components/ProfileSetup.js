@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import PersonalDetails from './PersonalDetails';
+import ActivityLevel from './ActivityLevel';
 import GoalSetting from './GoalSetting';
 import Confetti from 'react-confetti';
 import { useWindowSize } from '@react-hook/window-size';
@@ -11,12 +12,9 @@ import {
   FaRunning, 
   FaBullseye, 
   FaUtensils, 
-  FaChartBar, 
   FaCheckCircle,
   FaArrowRight,
-  FaArrowLeft,
-  FaTimes,
-  FaCog
+  FaArrowLeft
 } from 'react-icons/fa';
 import '../styles/ProfileSetup.css';
 
@@ -152,7 +150,7 @@ const ProfileSetup = () => {
         );
       case 1:
         return (
-          <GoalSetting
+          <ActivityLevel
             data={formData.activityLevel}
             onUpdate={(data) => handleFormDataUpdate(data, 'activityLevel')}
           />
@@ -167,23 +165,112 @@ const ProfileSetup = () => {
       case 3:
         return (
           <div className="dietary-preferences">
-            <h3>Dietary Preferences</h3>
-            <p>This step will be implemented in future sprints.</p>
+            <div className="coming-soon-container">
+              <div className="coming-soon-icon">
+                <FaUtensils />
+              </div>
+              <h3>Dietary Preferences</h3>
+              <p className="coming-soon-text">
+                We're working on this feature to help you track your dietary preferences, 
+                allergies, and nutritional requirements.
+              </p>
+              <div className="feature-preview">
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Dietary Restrictions</span>
+                </div>
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Food Allergies</span>
+                </div>
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Meal Preferences</span>
+                </div>
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Nutritional Goals</span>
+                </div>
+              </div>
+              <p className="coming-soon-note">
+                This will be available in future updates. For now, you can skip this step.
+              </p>
+            </div>
           </div>
         );
       case 4:
         return (
           <div className="review-step">
-            <h3>Review Your Profile</h3>
+            <div className="review-header">
+              <h3>Review Your Health Profile</h3>
+              <p>Please review your information before completing the setup</p>
+            </div>
+            
             <div className="profile-summary">
-              <h4>Personal Details</h4>
-              <pre>{JSON.stringify(formData.personalDetails, null, 2)}</pre>
+              <div className="summary-card">
+                <div className="card-header">
+                  <FaUser className="card-icon" />
+                  <h4>Personal Details</h4>
+                </div>
+                <div className="card-content">
+                  <div className="detail-row">
+                    <span className="label">Age:</span>
+                    <span className="value">{formData.personalDetails.age || 'Not specified'} years</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Height:</span>
+                    <span className="value">{formData.personalDetails.height || 'Not specified'} cm</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Weight:</span>
+                    <span className="value">{formData.personalDetails.weight || 'Not specified'} kg</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Gender:</span>
+                    <span className="value">{formData.personalDetails.gender || 'Not specified'}</span>
+                  </div>
+                </div>
+              </div>
               
-              <h4>Activity Level</h4>
-              <p>{formData.activityLevel || 'Not specified'}</p>
+              <div className="summary-card">
+                <div className="card-header">
+                  <FaRunning className="card-icon" />
+                  <h4>Activity Level</h4>
+                </div>
+                <div className="card-content">
+                  <div className="activity-badge">
+                    {formData.activityLevel || 'Not specified'}
+                  </div>
+                </div>
+              </div>
               
-              <h4>Goals</h4>
-              <pre>{JSON.stringify(formData.goals, null, 2)}</pre>
+              <div className="summary-card">
+                <div className="card-header">
+                  <FaBullseye className="card-icon" />
+                  <h4>Health Goals</h4>
+                </div>
+                <div className="card-content">
+                  <div className="detail-row">
+                    <span className="label">Primary Goal:</span>
+                    <span className="value">{formData.goals.primaryGoal || 'Not specified'}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Target Weight:</span>
+                    <span className="value">{formData.goals.targetWeight ? `${formData.goals.targetWeight} kg` : 'Not specified'}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Weekly Goal:</span>
+                    <span className="value">{formData.goals.weeklyGoal || 'Not specified'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="review-actions">
+              <p className="review-note">
+                <FaCheckCircle className="note-icon" />
+                Ready to start your health journey? Click "Complete Setup" to save your profile.
+              </p>
             </div>
           </div>
         );
@@ -193,7 +280,7 @@ const ProfileSetup = () => {
   };
 
   return (
-    <div className="profile-setup-container">
+    <div className="profile-setup-wrapper">
       {showConfetti && (
         <Confetti
           width={width}
@@ -203,77 +290,139 @@ const ProfileSetup = () => {
         />
       )}
       
-      <div className="profile-setup-header">
-        <div className="header-content">
-          <h1>Complete Your Profile</h1>
-          <p>Let's get to know you better to personalize your health journey</p>
-          
-          <div className="setup-options">
-            <button 
-              className="btn btn-primary btn-large"
-              onClick={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : 'Complete Setup'}
-            </button>
+      <div className="profile-setup-container">
+        {/* Header Section */}
+        <div className="profile-setup-header">
+          <div className="header-content">
+            <div className="header-badge">
+              <FaUser className="badge-icon" />
+              <span>Profile Setup</span>
+            </div>
+            <h1>Complete Your Health Profile</h1>
+            <p>Let's personalize your journey to better health with a few quick questions</p>
             
-            <button 
-              className="btn btn-secondary btn-large"
-              onClick={handleSetupLater}
-            >
-              Setup Profile Later
-            </button>
+            {/* Progress Bar */}
+            <div className="progress-container">
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill"
+                  style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                ></div>
+              </div>
+              <span className="progress-text">
+                Step {currentStep + 1} of {steps.length}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="profile-setup-content">
-        <div className="step-indicator">
-          {steps.map((step, index) => (
-            <div
-              key={index}
-              className={`step ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}`}
-              onClick={() => handleStepClick(index)}
-            >
-              <div className="step-number">
-                {index < currentStep ? (
-                  <FaCheckCircle className="step-check" />
-                ) : (
-                  index + 1
-                )}
-              </div>
-              <div className="step-info">
-                <div className="step-icon-wrapper">
-                  {getStepIcon(step)}
+        {/* Main Content */}
+        <div className="profile-setup-content">
+          {/* Enhanced Step Indicator */}
+          <div className="step-indicator">
+            {steps.map((step, index) => (
+              <div
+                key={index}
+                className={`step ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''} ${index > currentStep ? 'upcoming' : ''}`}
+                onClick={() => handleStepClick(index)}
+              >
+                <div className="step-connector"></div>
+                <div className="step-circle">
+                  <div className="step-number">
+                    {index < currentStep ? (
+                      <FaCheckCircle className="step-check" />
+                    ) : (
+                      <span>{index + 1}</span>
+                    )}
+                  </div>
                 </div>
-                <span className="step-title">{step}</span>
+                <div className="step-info">
+                  <div className="step-icon-wrapper">
+                    {getStepIcon(step)}
+                  </div>
+                  <span className="step-title">{step}</span>
+                  <span className="step-subtitle">
+                    {index === currentStep ? 'Current' : 
+                     index < currentStep ? 'Completed' : 'Upcoming'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Step Content with Animation */}
+          <div className="step-content-wrapper">
+            <div className={`step-content step-${currentStep}`}>
+              <div className="step-header">
+                <div className="step-icon-large">
+                  {getStepIcon(steps[currentStep])}
+                </div>
+                <h2>{steps[currentStep]}</h2>
+              </div>
+              
+              <div className="step-body">
+                {renderStepContent()}
               </div>
             </div>
-          ))}
+          </div>
+
+          {/* Enhanced Navigation */}
+          <div className="step-navigation">
+            <div className="nav-left">
+              {currentStep > 0 && (
+                <button 
+                  className="btn btn-outline btn-nav"
+                  onClick={handlePrevious}
+                >
+                  <FaArrowLeft className="btn-icon" />
+                  <span>Previous</span>
+                </button>
+              )}
+            </div>
+            
+            <div className="nav-center">
+              <div className="step-dots">
+                {steps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`dot ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}`}
+                    onClick={() => handleStepClick(index)}
+                  ></div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="nav-right">
+              {currentStep < steps.length - 1 ? (
+                <button 
+                  className="btn btn-primary btn-nav"
+                  onClick={handleNext}
+                >
+                  <span>Next</span>
+                  <FaArrowRight className="btn-icon" />
+                </button>
+              ) : (
+                <button 
+                  className="btn btn-success btn-nav btn-complete"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                >
+                  <FaCheckCircle className="btn-icon" />
+                  <span>{loading ? 'Saving...' : 'Complete Setup'}</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="step-content">
-          {renderStepContent()}
-        </div>
-
-        <div className="step-navigation">
-          {currentStep > 0 && (
-            <button 
-              className="btn btn-outline"
-              onClick={handlePrevious}
-            >
-              <FaArrowLeft /> Previous
-            </button>
-          )}
-          
-          {currentStep < steps.length - 1 && (
-            <button 
-              className="btn btn-primary"
-              onClick={handleNext}
-            >
-              Next <FaArrowRight />
-            </button>
-          )}
+        {/* Footer */}
+        <div className="profile-setup-footer">
+          <button 
+            className="btn btn-ghost"
+            onClick={handleSetupLater}
+          >
+            I'll complete this later
+          </button>
         </div>
       </div>
     </div>
