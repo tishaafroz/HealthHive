@@ -4,9 +4,20 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import PersonalDetails from './PersonalDetails';
 import GoalSetting from './GoalSetting';
-import ProfileProgress from './ProfileProgress';
 import Confetti from 'react-confetti';
 import { useWindowSize } from '@react-hook/window-size';
+import { 
+  FaUser, 
+  FaRunning, 
+  FaBullseye, 
+  FaUtensils, 
+  FaChartBar, 
+  FaCheckCircle,
+  FaArrowRight,
+  FaArrowLeft,
+  FaTimes,
+  FaCog
+} from 'react-icons/fa';
 import '../styles/ProfileSetup.css';
 
 const steps = [
@@ -14,256 +25,165 @@ const steps = [
   'Activity Level',
   'Goals',
   'Dietary Preferences',
-  'Review'
+  'Review & Complete'
 ];
 
-const initialProfileData = {
-  age: '',
-  gender: '',
-  height: '',
-  weight: '',
-  activityLevel: 'moderate',
-  healthGoal: 'maintain_weight',
-  targetWeight: '',
-  goalTimeline: '',
-  dietaryPreferences: [],
-};
-
-function formatKey(key) {
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, str => str.toUpperCase())
-    .replace(/_/g, ' ');
-}
-
 const ProfileSetup = () => {
-  const { refreshProfileStatus } = useAuth();
+  const { updateProfileComplete } = useAuth();
   const navigate = useNavigate();
+  const { width, height } = useWindowSize();
   const [currentStep, setCurrentStep] = useState(0);
-  const [profileData, setProfileData] = useState(() => {
-    const saved = localStorage.getItem('profileData');
-    return saved ? JSON.parse(saved) : initialProfileData;
+  const [formData, setFormData] = useState({
+    personalDetails: {
+      age: '',
+      height: '',
+      weight: '',
+      gender: ''
+    },
+    activityLevel: '',
+    goals: {
+      primaryGoal: '',
+      targetWeight: '',
+      weeklyGoal: ''
+    },
+    dietaryPreferences: {
+      restrictions: [],
+      preferences: [],
+      allergies: []
+    }
   });
-  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState('');
-  const [apiError, setApiError] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
-  const [width, height] = useWindowSize();
 
-  useEffect(() => {
-    localStorage.setItem('profileData', JSON.stringify(profileData));
-  }, [profileData]);
-
-  useEffect(() => {
-    validateStep();
-    // eslint-disable-next-line
-  }, [profileData, currentStep]);
-
-  const validateStep = () => {
-    let stepErrors = {};
-    if (currentStep === 0) {
-      if (!profileData.age || profileData.age < 13 || profileData.age > 120)
-        stepErrors.age = 'Age must be between 13 and 120.';
-      if (!profileData.gender)
-        stepErrors.gender = 'Gender is required.';
-      if (!profileData.height || profileData.height < 50 || profileData.height > 300)
-        stepErrors.height = 'Height must be between 50 and 300 cm.';
-      if (!profileData.weight || profileData.weight < 20 || profileData.weight > 500)
-        stepErrors.weight = 'Weight must be between 20 and 500 kg.';
+  // Get step icon based on step name
+  const getStepIcon = (stepName) => {
+    switch (stepName) {
+      case 'Personal Details':
+        return <FaUser className="step-icon" />;
+      case 'Activity Level':
+        return <FaRunning className="step-icon" />;
+      case 'Goals':
+        return <FaBullseye className="step-icon" />;
+      case 'Dietary Preferences':
+        return <FaUtensils className="step-icon" />;
+      case 'Review & Complete':
+        return <FaCheckCircle className="step-icon" />;
+      default:
+        return <FaUser className="step-icon" />;
     }
-    if (currentStep === 1) {
-      if (!profileData.activityLevel)
-        stepErrors.activityLevel = 'Activity level is required.';
-    }
-    if (currentStep === 2) {
-      if (!profileData.healthGoal)
-        stepErrors.healthGoal = 'Health goal is required.';
-      if (
-        ['lose_weight', 'gain_weight'].includes(profileData.healthGoal) &&
-        (!profileData.targetWeight ||
-          profileData.targetWeight < 20 ||
-          profileData.targetWeight > 500 ||
-          (profileData.healthGoal === 'lose_weight' && Number(profileData.targetWeight) >= Number(profileData.weight)) ||
-          (profileData.healthGoal === 'gain_weight' && Number(profileData.targetWeight) <= Number(profileData.weight)))
-      ) {
-        stepErrors.targetWeight = 'Target weight must be valid and logical for your goal.';
-      }
-    }
-    if (currentStep === 3) {
-      if (!Array.isArray(profileData.dietaryPreferences))
-        stepErrors.dietaryPreferences = 'Please select at least one preference or "No restrictions".';
-    }
-    setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
   };
 
   const handleNext = () => {
-    if (validateStep()) setCurrentStep((prev) => prev + 1);
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
   };
 
-  const handleBack = () => setCurrentStep((prev) => prev - 1);
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
 
-  const handleChange = (field, value) => {
-    setProfileData((prev) => ({
+  const handleStepClick = (stepIndex) => {
+    if (stepIndex <= currentStep) {
+      setCurrentStep(stepIndex);
+    }
+  };
+
+  const handleFormDataUpdate = (stepData, stepName) => {
+    setFormData(prev => ({
       ...prev,
-      [field]: value
+      [stepName]: stepData
     }));
   };
 
   const handleSubmit = async () => {
-    if (!validateStep()) return;
     setLoading(true);
-    setApiError('');
-    setSuccess('');
-    
     try {
-      // First, update the user profile
-      await axios.put('/api/users/profile', profileData);
+      // Combine all form data
+      const completeProfile = {
+        ...formData.personalDetails,
+        activityLevel: formData.activityLevel,
+        goals: formData.goals,
+        dietaryPreferences: formData.dietaryPreferences,
+        profileComplete: true
+      };
+
+      // Update user profile
+      const token = localStorage.getItem('token');
+      await axios.put('/api/users/profile', completeProfile, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update local state
+      updateProfileComplete(true);
       
-      // Mark profile as complete
-      await axios.put('/api/users/profile/complete', { profileCompleted: true });
-      
-      setSuccess('Profile completed successfully!');
-      localStorage.removeItem('profileData');
+      // Show confetti
       setShowConfetti(true);
       
-      // Refresh profile status
-      await refreshProfileStatus();
-      
-      // Redirect to dashboard after 2 seconds
+      // Redirect to dashboard after a short delay
       setTimeout(() => {
         navigate('/dashboard');
       }, 2000);
-      
-    } catch (err) {
-      console.error('Profile save error:', err);
-      setApiError(err.response?.data?.message || 'Failed to save profile. Please try again.');
+
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSkipProfile = async () => {
-    console.log('Skip profile clicked');
-    setLoading(true);
-    
-    try {
-      // Mark profile as incomplete but allow access to dashboard
-      await axios.put('/api/users/profile/complete', { 
-        profileCompleted: false,
-        profileCompletionPercentage: 0
-      });
-      
-      console.log('Profile marked as incomplete');
-      
-      // Refresh profile status
-      await refreshProfileStatus();
-      
-      console.log('Profile status refreshed, navigating to dashboard...');
-      
-      // Navigate to dashboard
-      navigate('/dashboard');
-      
-    } catch (err) {
-      console.error('Skip profile error:', err);
-      // Even if there's an error, navigate to dashboard
-      console.log('Error occurred, but still navigating to dashboard...');
-      navigate('/dashboard');
-    } finally {
-      setLoading(false);
-    }
+  const handleSetupLater = () => {
+    // Mark profile as incomplete but allow access to dashboard
+    updateProfileComplete(false);
+    navigate('/dashboard');
   };
 
-  // Alternative method using window.location if navigate doesn't work
-  const forceRedirectToDashboard = () => {
-    console.log('Force redirect to dashboard');
-    window.location.href = '/dashboard';
-  };
-
-  const renderStep = () => {
+  const renderStepContent = () => {
     switch (currentStep) {
       case 0:
         return (
           <PersonalDetails
-            data={profileData}
-            onChange={handleChange}
-            errors={errors}
+            data={formData.personalDetails}
+            onUpdate={(data) => handleFormDataUpdate(data, 'personalDetails')}
           />
         );
       case 1:
         return (
-          <div>
-            <div className="floating-label-group">
-              <select
-                value={profileData.activityLevel}
-                onChange={e => handleChange('activityLevel', e.target.value)}
-                required
-              >
-                <option value="">Select activity level</option>
-                <option value="sedentary">Sedentary (little or no exercise)</option>
-                <option value="light">Light (light exercise 1-3 days/week)</option>
-                <option value="moderate">Moderate (moderate exercise 3-5 days/week)</option>
-                <option value="active">Active (hard exercise 6-7 days/week)</option>
-                <option value="very_active">Very Active (very hard exercise, physical job)</option>
-              </select>
-              <label className="floating-label">Activity Level</label>
-              {errors.activityLevel && <div className="error">{errors.activityLevel}</div>}
-            </div>
-          </div>
+          <GoalSetting
+            data={formData.activityLevel}
+            onUpdate={(data) => handleFormDataUpdate(data, 'activityLevel')}
+          />
         );
       case 2:
         return (
           <GoalSetting
-            data={profileData}
-            onChange={handleChange}
-            errors={errors}
+            data={formData.goals}
+            onUpdate={(data) => handleFormDataUpdate(data, 'goals')}
           />
         );
       case 3:
         return (
-          <div>
-            <div style={{ marginBottom: 16, fontWeight: 600 }}>Dietary Preferences</div>
-            {['vegetarian', 'vegan', 'pescatarian', 'keto', 'paleo', 'none'].map(opt => (
-              <label key={opt} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={profileData.dietaryPreferences.includes(opt)}
-                  onChange={e => {
-                    let prefs = [...profileData.dietaryPreferences];
-                    if (e.target.checked) {
-                      prefs.push(opt);
-                    } else {
-                      prefs = prefs.filter(p => p !== opt);
-                    }
-                    handleChange('dietaryPreferences', prefs);
-                  }}
-                />
-                {opt.charAt(0).toUpperCase() + opt.slice(1)}
-              </label>
-            ))}
-            {errors.dietaryPreferences && <div className="error">{errors.dietaryPreferences}</div>}
+          <div className="dietary-preferences">
+            <h3>Dietary Preferences</h3>
+            <p>This step will be implemented in future sprints.</p>
           </div>
         );
       case 4:
         return (
-          <div>
-            <div style={{ marginBottom: 16, fontWeight: 600, fontSize: '1.2rem' }}>Review & Confirm</div>
-            <div className="review-card">
-              <table className="review-table">
-                <tbody>
-                  {Object.entries(profileData).map(([key, value]) => (
-                    <tr key={key}>
-                      <td className="review-key">{formatKey(key)}</td>
-                      <td className="review-value">
-                        {Array.isArray(value)
-                          ? value.length > 0 ? value.join(', ') : <span style={{ color: '#bbb' }}>None</span>
-                          : value || <span style={{ color: '#bbb' }}>None</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="review-step">
+            <h3>Review Your Profile</h3>
+            <div className="profile-summary">
+              <h4>Personal Details</h4>
+              <pre>{JSON.stringify(formData.personalDetails, null, 2)}</pre>
+              
+              <h4>Activity Level</h4>
+              <p>{formData.activityLevel || 'Not specified'}</p>
+              
+              <h4>Goals</h4>
+              <pre>{JSON.stringify(formData.goals, null, 2)}</pre>
             </div>
           </div>
         );
@@ -273,58 +193,88 @@ const ProfileSetup = () => {
   };
 
   return (
-    <div className="profile-setup-bg">
-      {showConfetti && <Confetti width={width} height={height} />}
-      <div className="profile-setup-container">
-        <ProfileProgress step={currentStep} totalSteps={steps.length} />
-        <h1>
-          {currentStep === steps.length - 1
-            ? "You're all set! 🎉"
-            : steps[currentStep]}
-        </h1>
-        {renderStep()}
-        
-        {/* Skip Profile Button - Show on all steps */}
-        <div className="skip-profile-section">
-          <button 
-            onClick={handleSkipProfile}
-            className="skip-profile-btn"
-            disabled={loading}
-          >
-            {loading ? 'Redirecting...' : 'Setup Profile Later'}
-          </button>
+    <div className="profile-setup-container">
+      {showConfetti && (
+        <Confetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={200}
+        />
+      )}
+      
+      <div className="profile-setup-header">
+        <div className="header-content">
+          <h1>Complete Your Profile</h1>
+          <p>Let's get to know you better to personalize your health journey</p>
           
-          {/* Fallback button if the first one doesn't work */}
-          <button 
-            onClick={forceRedirectToDashboard}
-            className="skip-profile-btn fallback-btn"
-            style={{ marginLeft: '10px' }}
-          >
-            Go to Dashboard (Fallback)
-          </button>
-          
-          <p className="skip-profile-text">
-            You can always complete your profile later from the dashboard
-          </p>
+          <div className="setup-options">
+            <button 
+              className="btn btn-primary btn-large"
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? 'Saving...' : 'Complete Setup'}
+            </button>
+            
+            <button 
+              className="btn btn-secondary btn-large"
+              onClick={handleSetupLater}
+            >
+              Setup Profile Later
+            </button>
+          </div>
         </div>
-        
-        <div className="navigation-buttons" style={{ marginTop: 20 }}>
+      </div>
+
+      <div className="profile-setup-content">
+        <div className="step-indicator">
+          {steps.map((step, index) => (
+            <div
+              key={index}
+              className={`step ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}`}
+              onClick={() => handleStepClick(index)}
+            >
+              <div className="step-number">
+                {index < currentStep ? (
+                  <FaCheckCircle className="step-check" />
+                ) : (
+                  index + 1
+                )}
+              </div>
+              <div className="step-info">
+                <div className="step-icon-wrapper">
+                  {getStepIcon(step)}
+                </div>
+                <span className="step-title">{step}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="step-content">
+          {renderStepContent()}
+        </div>
+
+        <div className="step-navigation">
           {currentStep > 0 && (
-            <button onClick={handleBack} disabled={loading}>Back</button>
-          )}
-          {currentStep < steps.length - 1 && (
-            <button onClick={handleNext} disabled={loading || Object.keys(errors).length > 0}>
-              Next
+            <button 
+              className="btn btn-outline"
+              onClick={handlePrevious}
+            >
+              <FaArrowLeft /> Previous
             </button>
-            )}
-          {currentStep === steps.length - 1 && (
-            <button onClick={handleSubmit} disabled={loading || Object.keys(errors).length > 0}>
-              {loading ? 'Saving...' : 'Finish'}
+          )}
+          
+          {currentStep < steps.length - 1 && (
+            <button 
+              className="btn btn-primary"
+              onClick={handleNext}
+            >
+              Next <FaArrowRight />
             </button>
           )}
         </div>
-        {apiError && <div className="error">{apiError}</div>}
-        {success && <div className="success">{success}</div>}
       </div>
     </div>
   );
