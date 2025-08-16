@@ -49,11 +49,25 @@ const BMICalculator = () => {
       return;
     }
 
+    const heightNum = parseFloat(height);
+    const weightNum = parseFloat(weight);
+
+    // Validate input ranges
+    if (heightNum < 50 || heightNum > 300) {
+      alert('Height must be between 50-300 cm');
+      return;
+    }
+
+    if (weightNum < 20 || weightNum > 500) {
+      alert('Weight must be between 20-500 kg');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await axios.post('/api/health/bmi/calculate', {
-        height: parseFloat(height),
-        weight: parseFloat(weight)
+        height: heightNum,
+        weight: weightNum
       });
 
       const { bmi, category, status, recommendations } = response.data.data;
@@ -67,7 +81,18 @@ const BMICalculator = () => {
       
     } catch (error) {
       console.error('Error calculating BMI:', error);
-      alert('Error calculating BMI. Please try again.');
+      
+      let errorMessage = 'Error calculating BMI. Please try again.';
+      
+      if (error.response) {
+        // Server responded with error status
+        errorMessage = error.response.data?.message || `Server error (${error.response.status})`;
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'Unable to connect to server. Please check your connection.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

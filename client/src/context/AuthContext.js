@@ -1,6 +1,38 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
+// Set up axios defaults
+axios.defaults.baseURL = 'http://localhost:5000';
+
+// Add axios interceptor to include auth token
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle auth errors
+axios.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -12,12 +44,20 @@ export const AuthProvider = ({ children }) => {
   // Fetch user and profile status on mount
   useEffect(() => {
     const fetchUser = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await axios.get('/api/auth/me'); // Adjust if your endpoint is different
         setUser(res.data);
         setIsAuthenticated(true);
         await refreshProfileStatus();
       } catch {
+        // Token is invalid, remove it
+        localStorage.removeItem('token');
         setIsAuthenticated(false);
         setUser(null);
         setProfileComplete(null);
@@ -42,7 +82,13 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     setLoading(true);
     try {
-      await axios.post('/api/auth/login', credentials);
+      const response = await axios.post('/api/auth/login', credentials);
+      const { token, user } = response.data;
+      
+      // Store token in localStorage
+      localStorage.setItem('token', token);
+      
+      setUser(user);
       setIsAuthenticated(true);
       await refreshProfileStatus();
       return { success: true, message: 'Login successful' };
@@ -60,7 +106,14 @@ export const AuthProvider = ({ children }) => {
 
   // Example logout function
   const logout = async () => {
-    await axios.post('/api/auth/logout');
+    try {
+      await axios.post('/api/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    // Clear token from localStorage
+    localStorage.removeItem('token');
     setIsAuthenticated(false);
     setUser(null);
     setProfileComplete(null);
@@ -69,7 +122,13 @@ export const AuthProvider = ({ children }) => {
   const register = async (credentials) => {
     setLoading(true);
     try {
-      await axios.post('/api/auth/register', credentials);
+      const response = await axios.post('/api/auth/register', credentials);
+      const { token, user } = response.data;
+      
+      // Store token in localStorage
+      localStorage.setItem('token', token);
+      
+      setUser(user);
       setIsAuthenticated(true);
       await refreshProfileStatus();
       return { success: true, message: 'Registration successful' };
