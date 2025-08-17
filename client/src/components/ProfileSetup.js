@@ -177,11 +177,6 @@ const ProfileSetup = () => {
       case 4:
         return (
           <div className="review-step">
-            <div className="review-header">
-              <h3>Review Your Health Profile</h3>
-              <p>Please review your information before completing the setup</p>
-            </div>
-            
             <div className="profile-summary">
               <div className="summary-card">
                 <div className="card-header">
@@ -191,19 +186,27 @@ const ProfileSetup = () => {
                 <div className="card-content">
                   <div className="detail-row">
                     <span className="label">Age:</span>
-                    <span className="value">{formData.personalDetails.age || 'Not specified'} years</span>
+                    <span className={`value ${!formData.personalDetails.age ? 'empty' : ''}`}>
+                      {formData.personalDetails.age ? `${formData.personalDetails.age} years` : '—'}
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Height:</span>
-                    <span className="value">{formData.personalDetails.height || 'Not specified'} cm</span>
+                    <span className={`value ${!formData.personalDetails.height ? 'empty' : ''}`}>
+                      {formData.personalDetails.height ? `${formData.personalDetails.height} cm` : '—'}
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Weight:</span>
-                    <span className="value">{formData.personalDetails.weight || 'Not specified'} kg</span>
+                    <span className={`value ${!formData.personalDetails.weight ? 'empty' : ''}`}>
+                      {formData.personalDetails.weight ? `${formData.personalDetails.weight} kg` : '—'}
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Gender:</span>
-                    <span className="value">{formData.personalDetails.gender || 'Not specified'}</span>
+                    <span className={`value ${!formData.personalDetails.gender ? 'empty' : ''}`}>
+                      {formData.personalDetails.gender || '—'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -213,9 +216,9 @@ const ProfileSetup = () => {
                   <FaRunning className="card-icon" />
                   <h4>Activity Level</h4>
                 </div>
-                <div className="card-content">
-                  <div className="activity-badge">
-                    {formData.activityLevel || 'Not specified'}
+                <div className="card-content activity-content">
+                  <div className={`activity-badge ${!formData.activityLevel ? 'empty' : ''}`}>
+                    {formData.activityLevel || 'Not Set'}
                   </div>
                 </div>
               </div>
@@ -228,15 +231,21 @@ const ProfileSetup = () => {
                 <div className="card-content">
                   <div className="detail-row">
                     <span className="label">Primary Goal:</span>
-                    <span className="value">{formData.goals.primaryGoal || 'Not specified'}</span>
+                    <span className={`value ${!formData.goals.primaryGoal ? 'empty' : ''}`}>
+                      {formData.goals.primaryGoal || '—'}
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Target Weight:</span>
-                    <span className="value">{formData.goals.targetWeight ? `${formData.goals.targetWeight} kg` : 'Not specified'}</span>
+                    <span className={`value ${!formData.goals.targetWeight ? 'empty' : ''}`}>
+                      {formData.goals.targetWeight ? `${formData.goals.targetWeight} kg` : '—'}
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Weekly Goal:</span>
-                    <span className="value">{formData.goals.weeklyGoal || 'Not specified'}</span>
+                    <span className={`value ${!formData.goals.weeklyGoal ? 'empty' : ''}`}>
+                      {formData.goals.weeklyGoal || '—'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -245,7 +254,7 @@ const ProfileSetup = () => {
             <div className="review-actions">
               <p className="review-note">
                 <FaCheckCircle className="note-icon" />
-                Ready to start your health journey? Click "Complete Setup" to save your profile.
+                Everything looks good! Complete your setup to get started.
               </p>
             </div>
           </div>
