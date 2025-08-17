@@ -356,7 +356,7 @@ const BMICalculator = () => {
                           <div 
                             className="bar-fill"
                             style={{ 
-                              height: `${Math.max((record.bmi / 40) * 100, 10)}%`,
+                              height: `${Math.max(((record.bmi - 15) / 25) * 100, 8)}%`,
                               backgroundColor: getBMIColor(record.bmiCategory)
                             }}
                           ></div>
