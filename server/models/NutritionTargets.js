@@ -78,7 +78,4 @@ const NutritionTargetsSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-// Index for efficient queries
-NutritionTargetsSchema.index({ userId: 1 });
-
 module.exports = mongoose.model('NutritionTargets', NutritionTargetsSchema); 
