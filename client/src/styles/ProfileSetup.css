@@ -1,3 +1,16 @@
+/* Consistent Title Color for All Major Components */
+.gender-icon,
+.gender-title,
+.dietary-preference-title,
+.activity-title,
+.goal-title,
+.dietary-title,
+.profile-title,
+.step-title,
+.review-title,
+.dietary-preference-span {
+  color: #026873 !important;
+}
 /* Activity Title Color Fix */
 .activity-title {
   color: #026873 !important;
