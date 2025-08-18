@@ -1,3 +1,7 @@
+/* Activity Title Color Fix */
+.activity-title {
+  color: #026873 !important;
+}
 body, html, #root {
   height: 100%;
   margin: 0;
