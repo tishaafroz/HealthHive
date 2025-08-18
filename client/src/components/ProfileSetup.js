@@ -1,10 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import PersonalDetails from './PersonalDetails';
+import ActivityLevel from './ActivityLevel';
 import GoalSetting from './GoalSetting';
-import ProfileProgress from './ProfileProgress';
 import Confetti from 'react-confetti';
 import { useWindowSize } from '@react-hook/window-size';
+import { 
+  FaUser, 
+  FaRunning, 
+  FaBullseye, 
+  FaUtensils, 
+  FaCheckCircle,
+  FaArrowRight,
+  FaArrowLeft
+} from 'react-icons/fa';
 import '../styles/ProfileSetup.css';
 
 const steps = [
@@ -12,201 +23,239 @@ const steps = [
   'Activity Level',
   'Goals',
   'Dietary Preferences',
-  'Review'
+  'Review & Complete'
 ];
 
-const initialProfileData = {
-  age: '',
-  gender: '',
-  height: '',
-  weight: '',
-  activityLevel: 'moderate',
-  healthGoal: 'maintain_weight',
-  targetWeight: '',
-  goalTimeline: '',
-  dietaryPreferences: [],
-};
-
-function formatKey(key) {
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, str => str.toUpperCase())
-    .replace(/_/g, ' ');
-}
-
 const ProfileSetup = () => {
+  const { updateProfileComplete } = useAuth();
+  const navigate = useNavigate();
+  const { width, height } = useWindowSize();
   const [currentStep, setCurrentStep] = useState(0);
-  const [profileData, setProfileData] = useState(() => {
-    const saved = localStorage.getItem('profileData');
-    return saved ? JSON.parse(saved) : initialProfileData;
+  const [formData, setFormData] = useState({
+    personalDetails: {
+      age: '',
+      height: '',
+      weight: '',
+      gender: ''
+    },
+    activityLevel: '',
+    goals: {
+      primaryGoal: '',
+      targetWeight: '',
+      weeklyGoal: ''
+    },
+    dietaryPreferences: {
+      restrictions: [],
+      preferences: [],
+      allergies: []
+    }
   });
-  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState('');
-  const [apiError, setApiError] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
-  const [width, height] = useWindowSize();
-
-  useEffect(() => {
-    localStorage.setItem('profileData', JSON.stringify(profileData));
-  }, [profileData]);
-
-  useEffect(() => {
-    validateStep();
-    // eslint-disable-next-line
-  }, [profileData, currentStep]);
-
-  const validateStep = () => {
-    let stepErrors = {};
-    if (currentStep === 0) {
-      if (!profileData.age || profileData.age < 13 || profileData.age > 120)
-        stepErrors.age = 'Age must be between 13 and 120.';
-      if (!profileData.gender)
-        stepErrors.gender = 'Gender is required.';
-      if (!profileData.height || profileData.height < 50 || profileData.height > 300)
-        stepErrors.height = 'Height must be between 50 and 300 cm.';
-      if (!profileData.weight || profileData.weight < 20 || profileData.weight > 500)
-        stepErrors.weight = 'Weight must be between 20 and 500 kg.';
-    }
-    if (currentStep === 1) {
-      if (!profileData.activityLevel)
-        stepErrors.activityLevel = 'Activity level is required.';
-    }
-    if (currentStep === 2) {
-      if (!profileData.healthGoal)
-        stepErrors.healthGoal = 'Health goal is required.';
-      if (
-        ['lose_weight', 'gain_weight'].includes(profileData.healthGoal) &&
-        (!profileData.targetWeight ||
-          profileData.targetWeight < 20 ||
-          profileData.targetWeight > 500 ||
-          (profileData.healthGoal === 'lose_weight' && Number(profileData.targetWeight) >= Number(profileData.weight)) ||
-          (profileData.healthGoal === 'gain_weight' && Number(profileData.targetWeight) <= Number(profileData.weight)))
-      ) {
-        stepErrors.targetWeight = 'Target weight must be valid and logical for your goal.';
-      }
-    }
-    if (currentStep === 3) {
-      if (!Array.isArray(profileData.dietaryPreferences))
-        stepErrors.dietaryPreferences = 'Please select at least one preference or "No restrictions".';
-    }
-    setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
-  };
 
   const handleNext = () => {
-    if (validateStep()) setCurrentStep((prev) => prev + 1);
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
   };
 
-  const handleBack = () => setCurrentStep((prev) => prev - 1);
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
 
-  const handleChange = (field, value) => {
-    setProfileData((prev) => ({
+  const handleFormDataUpdate = (stepData, stepName) => {
+    setFormData(prev => ({
       ...prev,
-      [field]: value
+      [stepName]: stepData
     }));
   };
 
   const handleSubmit = async () => {
-    if (!validateStep()) return;
     setLoading(true);
-    setApiError('');
-    setSuccess('');
     try {
-      await axios.put('/api/users/profile', profileData);
-      setSuccess('Profile completed successfully!');
-      localStorage.removeItem('profileData');
+      // Combine all form data
+      const completeProfile = {
+        ...formData.personalDetails,
+        activityLevel: formData.activityLevel,
+        goals: formData.goals,
+        dietaryPreferences: formData.dietaryPreferences,
+        profileComplete: true
+      };
+
+      // Update user profile
+      const token = localStorage.getItem('token');
+      await axios.put('/api/users/profile', completeProfile, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Update local state
+      updateProfileComplete(true);
+      
+      // Show confetti
       setShowConfetti(true);
-    } catch (err) {
-      setApiError(err.response?.data?.message || 'Failed to save profile.');
+      
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderStep = () => {
+  const handleSetupLater = () => {
+    // Mark profile as incomplete but allow access to dashboard
+    updateProfileComplete(false);
+    navigate('/dashboard');
+  };
+
+  const renderStepContent = () => {
     switch (currentStep) {
       case 0:
         return (
           <PersonalDetails
-            data={profileData}
-            onChange={handleChange}
-            errors={errors}
+            data={formData.personalDetails}
+            onUpdate={(data) => handleFormDataUpdate(data, 'personalDetails')}
           />
         );
       case 1:
         return (
-          <div>
-            <div className="floating-label-group">
-              <select
-                value={profileData.activityLevel}
-                onChange={e => handleChange('activityLevel', e.target.value)}
-                required
-              >
-                <option value="">Select activity level</option>
-                <option value="sedentary">Sedentary (little or no exercise)</option>
-                <option value="light">Light (light exercise 1-3 days/week)</option>
-                <option value="moderate">Moderate (moderate exercise 3-5 days/week)</option>
-                <option value="active">Active (hard exercise 6-7 days/week)</option>
-                <option value="very_active">Very Active (very hard exercise, physical job)</option>
-              </select>
-              <label className="floating-label">Activity Level</label>
-              {errors.activityLevel && <div className="error">{errors.activityLevel}</div>}
-            </div>
-          </div>
+          <ActivityLevel
+            data={formData.activityLevel}
+            onUpdate={(data) => handleFormDataUpdate(data, 'activityLevel')}
+          />
         );
       case 2:
         return (
           <GoalSetting
-            data={profileData}
-            onChange={handleChange}
-            errors={errors}
+            data={formData.goals}
+            onUpdate={(data) => handleFormDataUpdate(data, 'goals')}
           />
         );
       case 3:
         return (
-          <div>
-            <div style={{ marginBottom: 16, fontWeight: 600 }}>Dietary Preferences</div>
-            {['vegetarian', 'vegan', 'pescatarian', 'keto', 'paleo', 'none'].map(opt => (
-              <label key={opt} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={profileData.dietaryPreferences.includes(opt)}
-                  onChange={e => {
-                    let prefs = [...profileData.dietaryPreferences];
-                    if (e.target.checked) {
-                      prefs.push(opt);
-                    } else {
-                      prefs = prefs.filter(p => p !== opt);
-                    }
-                    handleChange('dietaryPreferences', prefs);
-                  }}
-                />
-                {opt.charAt(0).toUpperCase() + opt.slice(1)}
-              </label>
-            ))}
-            {errors.dietaryPreferences && <div className="error">{errors.dietaryPreferences}</div>}
+          <div className="dietary-preferences">
+            <div className="coming-soon-container">
+              <div className="coming-soon-icon">
+                <FaUtensils />
+              </div>
+              <h3>Dietary Preferences</h3>
+              <p className="coming-soon-text">
+                We're working on this feature to help you track your dietary preferences, 
+                allergies, and nutritional requirements.
+              </p>
+              <div className="feature-preview">
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Dietary Restrictions</span>
+                </div>
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Food Allergies</span>
+                </div>
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Meal Preferences</span>
+                </div>
+                <div className="preview-item">
+                  <FaCheckCircle className="preview-icon" />
+                  <span>Nutritional Goals</span>
+                </div>
+              </div>
+              <p className="coming-soon-note">
+                This will be available in future updates. For now, you can skip this step.
+              </p>
+            </div>
           </div>
         );
       case 4:
         return (
-          <div>
-            <div style={{ marginBottom: 16, fontWeight: 600, fontSize: '1.2rem' }}>Review & Confirm</div>
-            <div className="review-card">
-              <table className="review-table">
-                <tbody>
-                  {Object.entries(profileData).map(([key, value]) => (
-                    <tr key={key}>
-                      <td className="review-key">{formatKey(key)}</td>
-                      <td className="review-value">
-                        {Array.isArray(value)
-                          ? value.length > 0 ? value.join(', ') : <span style={{ color: '#bbb' }}>None</span>
-                          : value || <span style={{ color: '#bbb' }}>None</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="review-step">
+            <div className="profile-summary">
+              <div className="summary-card">
+                <div className="card-header">
+                  <FaUser className="card-icon" />
+                  <h4>Personal Details</h4>
+                </div>
+                <div className="card-content">
+                  <div className="detail-row">
+                    <span className="label">Age:</span>
+                    <span className={`value ${!formData.personalDetails.age ? 'empty' : ''}`}>
+                      {formData.personalDetails.age ? `${formData.personalDetails.age} years` : '—'}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Height:</span>
+                    <span className={`value ${!formData.personalDetails.height ? 'empty' : ''}`}>
+                      {formData.personalDetails.height ? `${formData.personalDetails.height} cm` : '—'}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Weight:</span>
+                    <span className={`value ${!formData.personalDetails.weight ? 'empty' : ''}`}>
+                      {formData.personalDetails.weight ? `${formData.personalDetails.weight} kg` : '—'}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Gender:</span>
+                    <span className={`value ${!formData.personalDetails.gender ? 'empty' : ''}`}>
+                      {formData.personalDetails.gender || '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="summary-card">
+                <div className="card-header">
+                  <FaRunning className="card-icon" />
+                  <h4>Activity Level</h4>
+                </div>
+                <div className="card-content activity-content">
+                  <div className={`activity-badge ${!formData.activityLevel ? 'empty' : ''}`}>
+                    {formData.activityLevel || 'Not Set'}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="summary-card">
+                <div className="card-header">
+                  <FaBullseye className="card-icon" />
+                  <h4>Health Goals</h4>
+                </div>
+                <div className="card-content">
+                  <div className="detail-row">
+                    <span className="label">Primary Goal:</span>
+                    <span className={`value ${!formData.goals.primaryGoal ? 'empty' : ''}`}>
+                      {formData.goals.primaryGoal || '—'}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Target Weight:</span>
+                    <span className={`value ${!formData.goals.targetWeight ? 'empty' : ''}`}>
+                      {formData.goals.targetWeight ? `${formData.goals.targetWeight} kg` : '—'}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Weekly Goal:</span>
+                    <span className={`value ${!formData.goals.weeklyGoal ? 'empty' : ''}`}>
+                      {formData.goals.weeklyGoal || '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="review-actions">
+              <p className="review-note">
+                <FaCheckCircle className="note-icon" />
+                Everything looks good! Complete your setup to get started.
+              </p>
             </div>
           </div>
         );
@@ -216,33 +265,87 @@ const ProfileSetup = () => {
   };
 
   return (
-    <div className="profile-setup-bg">
-      {showConfetti && <Confetti width={width} height={height} />}
-      <div className="profile-setup-container">
-        <ProfileProgress step={currentStep} totalSteps={steps.length} />
-        <h1>
-          {currentStep === steps.length - 1
-            ? "You're all set! 🎉"
-            : steps[currentStep]}
-        </h1>
-        {renderStep()}
-        <div className="navigation-buttons" style={{ marginTop: 20 }}>
+    <div className="profile-setup-wrapper">
+      {showConfetti && (
+        <Confetti
+          width={width}
+          height={height}
+          recycle={false}
+          numberOfPieces={200}
+        />
+      )}
+      
+      <div className="mobile-inspired-container">
+        {/* Header with Back Button */}
+        <div className="mobile-header">
           {currentStep > 0 && (
-            <button onClick={handleBack} disabled={loading}>Back</button>
-          )}
-          {currentStep < steps.length - 1 && (
-            <button onClick={handleNext} disabled={loading || Object.keys(errors).length > 0}>
-              Next
+            <button className="back-btn" onClick={handlePrevious}>
+              <FaArrowLeft />
             </button>
           )}
-          {currentStep === steps.length - 1 && (
-            <button onClick={handleSubmit} disabled={loading || Object.keys(errors).length > 0}>
-              {loading ? 'Saving...' : 'Finish'}
-            </button>
-          )}
+          <div className="progress-dots">
+            {steps.map((_, index) => (
+              <div
+                key={index}
+                className={`progress-dot ${index <= currentStep ? 'active' : ''}`}
+              ></div>
+            ))}
+          </div>
+          <div className="header-spacer"></div>
         </div>
-        {apiError && <div className="error">{apiError}</div>}
-        {success && <div className="success">{success}</div>}
+
+        {/* Main Question Card */}
+        <div className="question-card">
+          <div className="question-header">
+            <h1 className="question-title">
+              {currentStep === 0 && "What's your personal info?"}
+              {currentStep === 1 && "What's your activity level?"}
+              {currentStep === 2 && "What's your goal?"}
+              {currentStep === 3 && "Your dietary preferences?"}
+              {currentStep === 4 && "Review your profile"}
+            </h1>
+            <p className="question-subtitle">
+              {currentStep === 0 && "Let's start with some basic details"}
+              {currentStep === 1 && "This helps us personalize your plan"}
+              {currentStep === 2 && "What would you like to achieve?"}
+              {currentStep === 3 && "Any dietary restrictions or preferences?"}
+              {currentStep === 4 && "Let's make sure everything looks good"}
+            </p>
+          </div>
+
+          <div className="question-content">
+            {renderStepContent()}
+          </div>
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="bottom-navigation">
+          {currentStep === steps.length - 1 ? (
+            <button 
+              className="continue-btn complete-btn"
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              <span>{loading ? 'Saving...' : 'Complete Setup'}</span>
+              <FaCheckCircle className="btn-icon" />
+            </button>
+          ) : (
+            <button 
+              className="continue-btn"
+              onClick={handleNext}
+            >
+              <span>Continue</span>
+              <FaArrowRight className="btn-icon" />
+            </button>
+          )}
+          
+          <button 
+            className="skip-btn"
+            onClick={handleSetupLater}
+          >
+            Skip for now
+          </button>
+        </div>
       </div>
     </div>
   );
