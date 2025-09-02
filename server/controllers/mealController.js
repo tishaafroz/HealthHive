@@ -79,22 +79,46 @@ exports.generateMealPlan = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Validate that user profile is complete with all required fields
+    const requiredFields = ['age', 'gender', 'height', 'weight', 'activityLevel', 'healthGoal'];
+    const missingFields = requiredFields.filter(field => !user[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required profile fields: ${missingFields.join(', ')}`);
+    }
+
     // Calculate or get nutrition targets
     let nutritionTargets = await NutritionTargets.findOne({ userId });
     
     if (!nutritionTargets) {
       // Calculate new targets
       const bmr = calculateBMR(user.weight, user.height, user.age, user.gender);
+      
+      if (isNaN(bmr)) {
+        throw new Error('Invalid values for BMR calculation. Please check height, weight, age, and gender values.');
+      }
+      
       const tdee = calculateTDEE(bmr, user.activityLevel);
+      
+      if (isNaN(tdee)) {
+        throw new Error('Invalid activity level for TDEE calculation.');
+      }
+      
       const targets = calculateNutritionTargets(
         tdee, user.healthGoal, user.weight, user.height, user.age, user.gender
       );
 
-      nutritionTargets = new NutritionTargets({
+      // Validate targets before creating NutritionTargets
+      if (!targets || Object.values(targets).some(val => val === null || val === undefined)) {
+        throw new Error('Invalid nutrition target calculations. Please check all input values.');
+      }
+
+      const nutritionTargetData = {
         userId,
         bmr: Math.round(bmr),
         tdee: Math.round(tdee),
-        ...targets,
+        dailyCalories: targets.dailyCalories,
+        macros: targets.macros,
         calculationParams: {
           age: user.age,
           gender: user.gender,
@@ -103,7 +127,22 @@ exports.generateMealPlan = async (req, res) => {
           activityLevel: user.activityLevel,
           healthGoal: user.healthGoal
         }
-      });
+      };
+
+      // Validate all required numeric fields are not NaN
+      const validateNumber = (obj) => {
+        for (let key in obj) {
+          if (typeof obj[key] === 'object') {
+            validateNumber(obj[key]);
+          } else if (typeof obj[key] === 'number' && isNaN(obj[key])) {
+            throw new Error(`Invalid numeric value for ${key}`);
+          }
+        }
+      };
+
+      validateNumber(nutritionTargetData);
+      
+      nutritionTargets = new NutritionTargets(nutritionTargetData);
 
       await nutritionTargets.save();
     }

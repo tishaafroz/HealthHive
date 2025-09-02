@@ -2,6 +2,9 @@ const ProgressEntry = require('../models/ProgressEntry');
 const Analytics = require('../models/Analytics');
 const ProgressTrackingService = require('../services/ProgressTrackingService');
 const AnalyticsService = require('../services/AnalyticsService');
+const WorkoutSession = require('../models/WorkoutSession');
+const MealPlan = require('../models/MealPlan');
+const User = require('../models/User');
 
 class ProgressController {
   static async addProgressEntry(req, res) {

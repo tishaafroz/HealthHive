@@ -18,6 +18,7 @@ const mealRoutes = require('./routes/meals');
 const workoutRoutes = require('./routes/workouts');
 const progressRoutes = require('./routes/progress');
 const notificationRoutes = require('./routes/notifications');
+const recipeRoutes = require('./routes/recipes');
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', userRoutes);
@@ -27,6 +28,7 @@ app.use('/api/meals', mealRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/recipes', recipeRoutes);
 
 console.log('MONGO_URI:', process.env.MONGO_URI);
 // Database connection

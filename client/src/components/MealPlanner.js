@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { FaUtensils, FaCalendar, FaPlus, FaEdit } from 'react-icons/fa';
+import { FaUtensils, FaCalendar, FaPlus, FaEdit, FaSearch } from 'react-icons/fa';
+import RecipeSearch from './RecipeSearch';
 import '../styles/MealPlanner.css';
 
 const MealPlanner = () => {
@@ -10,6 +11,8 @@ const MealPlanner = () => {
   const [nutritionTargets, setNutritionTargets] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [showRecipeSearch, setShowRecipeSearch] = useState(false);
+  const [selectedMealIndex, setSelectedMealIndex] = useState(null);
   const [generateParams, setGenerateParams] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -206,12 +209,24 @@ const MealPlanner = () => {
                   <div className="meal-header">
                     <h5>{meal.name || `Meal ${index + 1}`}</h5>
                     <span className="meal-time">{meal.time || 'TBD'}</span>
+                    <button 
+                      className="add-recipe-btn"
+                      onClick={() => {
+                        setSelectedMealIndex(index);
+                        setShowRecipeSearch(true);
+                      }}
+                    >
+                      <FaSearch /> Add Recipe
+                    </button>
                   </div>
                   <div className="meal-foods">
                     {meal.foods && meal.foods.map((food, foodIndex) => (
                       <div key={foodIndex} className="food-item">
                         <span className="food-name">{food.name || 'Unknown Food'}</span>
                         <span className="food-portion">{food.portion || '1 serving'}</span>
+                        {food.recipeId && (
+                          <span className="recipe-badge">Recipe</span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -221,6 +236,44 @@ const MealPlanner = () => {
           ) : (
             <div className="no-meals">
               <p>No meals planned yet. Generate a meal plan to get started!</p>
+            </div>
+          )}
+
+          {/* Recipe Search Modal */}
+          {showRecipeSearch && (
+            <div className="modal-overlay">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h3>Add Recipe to {mealPlan.meals[selectedMealIndex]?.name || `Meal ${selectedMealIndex + 1}`}</h3>
+                  <button 
+                    className="close-modal-btn"
+                    onClick={() => setShowRecipeSearch(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <RecipeSearch 
+                    onSelectRecipe={async (recipe) => {
+                      try {
+                        // Add recipe to meal plan
+                        const response = await axios.post('/api/meals/plan/add-recipe', {
+                          mealPlanId: mealPlan._id,
+                          mealIndex: selectedMealIndex,
+                          recipeId: recipe._id
+                        });
+                        
+                        // Update meal plan with new data
+                        setMealPlan(response.data.data);
+                        setShowRecipeSearch(false);
+                      } catch (error) {
+                        console.error('Error adding recipe to meal:', error);
+                        alert('Failed to add recipe to meal. Please try again.');
+                      }
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
