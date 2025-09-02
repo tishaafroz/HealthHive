@@ -1,181 +1,119 @@
 const Food = require('../models/Food');
+const axios = require('axios');
 
-// Search foods with filters
-exports.searchFoods = async (req, res) => {
+// Edamam API configuration
+const EDAMAM_APP_ID = process.env.EDAMAM_APP_ID;
+const EDAMAM_APP_KEY = process.env.EDAMAM_APP_KEY;
+const EDAMAM_BASE_URL = 'https://api.edamam.com/api/food-database/v2';
+
+// Search foods from Edamam API
+exports.searchFood = async (req, res) => {
   try {
-    const {
-      q = '',
-      category = '',
-      limit = 20,
-      page = 1,
-      sortBy = 'name',
-      sortOrder = 'asc',
-      minCalories = 0,
-      maxCalories = 9999,
-      minProtein = 0,
-      maxProtein = 999,
-      allergens = []
-    } = req.query;
-
-    const skip = (page - 1) * limit;
-    
-    // Build search query
-    let query = {};
-    
-    // Text search
-    if (q) {
-      query.$text = { $search: q };
-    }
-    
-    // Category filter
-    if (category) {
-      query.category = category;
-    }
-    
-    // Calorie range filter
-    query['nutrition.calories'] = { $gte: parseInt(minCalories), $lte: parseInt(maxCalories) };
-    
-    // Protein range filter
-    query['nutrition.protein'] = { $gte: parseInt(minProtein), $lte: parseInt(maxProtein) };
-    
-    // Allergen filter (exclude foods with specified allergens)
-    if (allergens.length > 0) {
-      query.allergens = { $nin: allergens.split(',') };
-    }
-
-    // Build sort object
-    let sort = {};
-    if (sortBy === 'calories') {
-      sort['nutrition.calories'] = sortOrder === 'desc' ? -1 : 1;
-    } else if (sortBy === 'protein') {
-      sort['nutrition.protein'] = sortOrder === 'desc' ? -1 : 1;
-    } else if (sortBy === 'popularity') {
-      sort.searchCount = sortOrder === 'desc' ? -1 : 1;
-    } else {
-      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-    }
-
-    // Execute query
-    const foods = await Food.find(query)
-      .sort(sort)
-      .limit(parseInt(limit))
-      .skip(skip);
-
-    const total = await Food.countDocuments(query);
-
-    // Update search count for found foods
-    if (foods.length > 0) {
-      const foodIds = foods.map(food => food._id);
-      await Food.updateMany(
-        { _id: { $in: foodIds } },
-        { $inc: { searchCount: 1 } }
-      );
-    }
-
-    res.json({
-      success: true,
-      data: foods,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrev: page > 1
+    const { query } = req.query;
+    const response = await axios.get(`${EDAMAM_BASE_URL}/parser`, {
+      params: {
+        app_id: EDAMAM_APP_ID,
+        app_key: EDAMAM_APP_KEY,
+        ingr: query
       }
     });
-
+    res.json(response.data);
   } catch (error) {
-    console.error('Food search error:', error);
-    res.status(500).json({ message: 'Server error while searching foods' });
+    console.error('Error searching food:', error);
+    res.status(500).json({ message: 'Error searching food database' });
   }
 };
 
-// Get food by ID
-exports.getFoodById = async (req, res) => {
+// Get nutrients for a specific food
+exports.getNutrients = async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    const food = await Food.findById(id);
-    
-    if (!food) {
-      return res.status(404).json({ message: 'Food not found' });
-    }
-
-    // Increment search count
-    food.searchCount += 1;
-    await food.save();
-
-    res.json({
-      success: true,
-      data: food
+    const { foodId } = req.params;
+    const response = await axios.get(`${EDAMAM_BASE_URL}/nutrients`, {
+      params: {
+        app_id: EDAMAM_APP_ID,
+        app_key: EDAMAM_APP_KEY,
+        ingredients: [{ foodId }]
+      }
     });
-
+    res.json(response.data);
   } catch (error) {
-    console.error('Get food error:', error);
-    res.status(500).json({ message: 'Server error while fetching food' });
+    console.error('Error getting nutrients:', error);
+    res.status(500).json({ message: 'Error retrieving nutrient information' });
   }
 };
 
-// Get food categories
-exports.getFoodCategories = async (req, res) => {
+// Search recipes using Edamam Recipe API
+exports.searchRecipes = async (req, res) => {
   try {
-    const categories = await Food.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 },
-          avgCalories: { $avg: '$nutrition.calories' }
-        }
-      },
-      {
-        $sort: { _id: 1 }
+    const { query } = req.query;
+    const response = await axios.get(`https://api.edamam.com/search`, {
+      params: {
+        app_id: process.env.EDAMAM_RECIPE_APP_ID,
+        app_key: process.env.EDAMAM_RECIPE_APP_KEY,
+        q: query
       }
-    ]);
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error searching recipes:', error);
+    res.status(500).json({ message: 'Error searching recipes' });
+  }
+};
 
-    res.json({
-      success: true,
-      data: categories
+// Save food to user's favorites
+exports.saveFoodToFavorites = async (req, res) => {
+  try {
+    const { foodData } = req.body;
+    const userId = req.user.id;
+
+    const favorite = new Food({
+      userId,
+      name: foodData.label,
+      edamamId: foodData.foodId,
+      nutrients: foodData.nutrients,
+      category: foodData.category,
+      image: foodData.image
     });
 
+    await favorite.save();
+    res.status(201).json(favorite);
   } catch (error) {
-    console.error('Get categories error:', error);
-    res.status(500).json({ message: 'Server error while fetching categories' });
+    console.error('Error saving favorite:', error);
+    res.status(500).json({ message: 'Error saving food to favorites' });
+  }
+};
+
+// Get user's favorite foods
+exports.getFavorites = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const favorites = await Food.find({ userId });
+    res.json(favorites);
+  } catch (error) {
+    console.error('Error getting favorites:', error);
+    res.status(500).json({ message: 'Error retrieving favorites' });
   }
 };
 
 // Add custom food
 exports.addCustomFood = async (req, res) => {
   try {
+    const { name, nutrients, category } = req.body;
     const userId = req.user.id;
-    const foodData = req.body;
 
-    // Validate required fields
-    const requiredFields = ['name', 'category', 'nutrition', 'servingSize'];
-    for (const field of requiredFields) {
-      if (!foodData[field]) {
-        return res.status(400).json({ message: `${field} is required` });
-      }
-    }
-
-    // Create custom food
     const customFood = new Food({
-      ...foodData,
-      isCustom: true,
-      addedBy: userId,
-      verified: false,
-      dataSource: 'User Input'
+      userId,
+      name,
+      nutrients,
+      category,
+      isCustom: true
     });
 
     await customFood.save();
-
-    res.status(201).json({
-      success: true,
-      data: customFood,
-      message: 'Custom food added successfully'
-    });
-
+    res.status(201).json(customFood);
   } catch (error) {
-    console.error('Add custom food error:', error);
-    res.status(500).json({ message: 'Server error while adding custom food' });
+    console.error('Error adding custom food:', error);
+    res.status(500).json({ message: 'Error adding custom food' });
   }
 };
 
@@ -183,29 +121,23 @@ exports.addCustomFood = async (req, res) => {
 exports.updateCustomFood = async (req, res) => {
   try {
     const { id } = req.params;
+    const { name, nutrients, category } = req.body;
     const userId = req.user.id;
-    const updateData = req.body;
 
-    // Find custom food and verify ownership
-    const food = await Food.findOne({ _id: id, isCustom: true, addedBy: userId });
-    
-    if (!food) {
-      return res.status(404).json({ message: 'Custom food not found or access denied' });
+    const updatedFood = await Food.findOneAndUpdate(
+      { _id: id, userId, isCustom: true },
+      { name, nutrients, category },
+      { new: true }
+    );
+
+    if (!updatedFood) {
+      return res.status(404).json({ message: 'Custom food not found' });
     }
 
-    // Update food
-    Object.assign(food, updateData, { updatedAt: new Date() });
-    await food.save();
-
-    res.json({
-      success: true,
-      data: food,
-      message: 'Custom food updated successfully'
-    });
-
+    res.json(updatedFood);
   } catch (error) {
-    console.error('Update custom food error:', error);
-    res.status(500).json({ message: 'Server error while updating custom food' });
+    console.error('Error updating custom food:', error);
+    res.status(500).json({ message: 'Error updating custom food' });
   }
 };
 
@@ -215,39 +147,15 @@ exports.deleteCustomFood = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const food = await Food.findOneAndDelete({ _id: id, isCustom: true, addedBy: userId });
-    
-    if (!food) {
-      return res.status(404).json({ message: 'Custom food not found or access denied' });
+    const deletedFood = await Food.findOneAndDelete({ _id: id, userId, isCustom: true });
+
+    if (!deletedFood) {
+      return res.status(404).json({ message: 'Custom food not found' });
     }
 
-    res.json({
-      success: true,
-      message: 'Custom food deleted successfully'
-    });
-
+    res.json({ message: 'Custom food deleted successfully' });
   } catch (error) {
-    console.error('Delete custom food error:', error);
-    res.status(500).json({ message: 'Server error while deleting custom food' });
-  }
-};
-
-// Get popular foods
-exports.getPopularFoods = async (req, res) => {
-  try {
-    const { limit = 10 } = req.query;
-
-    const popularFoods = await Food.find({ isPopular: true })
-      .sort({ searchCount: -1 })
-      .limit(parseInt(limit));
-
-    res.json({
-      success: true,
-      data: popularFoods
-    });
-
-  } catch (error) {
-    console.error('Get popular foods error:', error);
-    res.status(500).json({ message: 'Server error while fetching popular foods' });
+    console.error('Error deleting custom food:', error);
+    res.status(500).json({ message: 'Error deleting custom food' });
   }
 };
