@@ -8,6 +8,7 @@ import ProfileSetup from './components/ProfileSetup';
 import BMICalculator from './components/BMICalculator';
 import FoodSearch from './components/FoodSearch';
 import MealPlanner from './components/MealPlanner';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import SmartRoute from './components/SmartRoute';
 import './App.css';
 
@@ -42,6 +43,11 @@ function App() {
             <Route path="/meal-planning" element={
               <SmartRoute requireProfileComplete={false}>
                 <MealPlanner />
+              </SmartRoute>
+            } />
+            <Route path="/analytics" element={
+              <SmartRoute requireProfileComplete={true}>
+                <AnalyticsDashboard />
               </SmartRoute>
             } />
             <Route path="/" element={<Navigate to="/dashboard" />} />

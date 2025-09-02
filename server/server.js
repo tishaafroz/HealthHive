@@ -32,9 +32,48 @@ app.use('/api/recipes', recipeRoutes);
 
 console.log('MONGO_URI:', process.env.MONGO_URI);
 // Database connection
-mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log('MongoDB connected'))
-.catch((err) => console.error('MongoDB connection error:', err));
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected) {
+    console.log('Using existing database connection');
+    return;
+  }
+
+  try {
+    // Try SRV connection first
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4  // Force IPv4
+    });
+    isConnected = true;
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('Primary connection failed:', error.message);
+    
+    try {
+      // Fallback to direct connection
+      const fallbackUri = process.env.MONGO_URI
+        .replace('mongodb+srv://', 'mongodb://')
+        .replace('/?', '/healthhive?');
+      
+      await mongoose.connect(fallbackUri, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        family: 4  // Force IPv4
+      });
+      isConnected = true;
+      console.log('MongoDB connected through fallback connection');
+    } catch (fallbackError) {
+      console.error('All connection attempts failed:', fallbackError.message);
+      process.exit(1);  // Exit if we can't connect to the database
+    }
+  }
+};
+
+// Initial connection
+connectDB();
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

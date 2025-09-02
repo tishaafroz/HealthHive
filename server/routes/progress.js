@@ -1,19 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const progressController = require('../controllers/progressController');
+const ProgressController = require('../controllers/progressController');
 
 // Progress entry routes
-router.post('/entry', auth, progressController.addProgressEntry);
-router.get('/entries', auth, progressController.getProgressHistory);
-router.put('/entry/:id', auth, progressController.updateProgressEntry);
-router.delete('/entry/:id', auth, progressController.deleteProgressEntry);
+router.post('/entry', auth, (req, res) => ProgressController.addProgressEntry(req, res));
+router.get('/entries', auth, (req, res) => ProgressController.getProgressHistory(req, res));
+router.put('/entry/:id', auth, (req, res) => ProgressController.updateProgressEntry(req, res));
+router.delete('/entry/:id', auth, (req, res) => ProgressController.deleteProgressEntry(req, res));
 
 // Analytics routes
-router.get('/analytics/dashboard', auth, progressController.getDashboardAnalytics);
-router.get('/analytics/weight-trend', auth, progressController.getWeightTrend);
-router.get('/analytics/activity-summary', auth, progressController.getActivitySummary);
-router.get('/analytics/goal-progress', auth, progressController.getGoalProgress);
-router.get('/analytics/compare/:period1/:period2', auth, progressController.comparePeriods);
+router.get('/weight-trend', auth, (req, res) => ProgressController.getWeightTrend(req, res));
+router.get('/calorie-balance', auth, (req, res) => ProgressController.getCalorieBalance(req, res));
+router.get('/workout-metrics', auth, (req, res) => ProgressController.getWorkoutMetrics(req, res));
+router.get('/meal-compliance', auth, (req, res) => ProgressController.getMealCompliance(req, res));
+router.get('/goal-progress', auth, (req, res) => ProgressController.getGoalProgress(req, res));
 
 module.exports = router;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 import BMICalculator from './BMICalculator';
 import FoodSearch from './FoodSearch';
 import MealPlanner from './MealPlanner';
@@ -30,17 +31,44 @@ const Dashboard = () => {
     streak: 0
   });
 
+  const [analytics, setAnalytics] = useState(null);
+
   useEffect(() => {
     // Fetch user stats if profile is complete
     if (profileComplete) {
-      // TODO: Fetch actual stats from API
-      setStats({
-        bmi: 24.5,
-        lastUpdated: '2024-01-15',
-        streak: 7
-      });
+      fetchStats();
+      fetchAnalytics();
     }
   }, [profileComplete]);
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get('/api/progress/entries/latest');
+      setStats({
+        bmi: response.data.bmi,
+        lastUpdated: response.data.date,
+        streak: response.data.streak
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      const [weightTrend, goalProgress] = await Promise.all([
+        axios.get('/api/progress/weight-trend?period=week'),
+        axios.get('/api/progress/goal-progress')
+      ]);
+
+      setAnalytics({
+        weightTrend: weightTrend.data.data,
+        goalProgress: goalProgress.data.data
+      });
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -236,6 +264,74 @@ const Dashboard = () => {
           {renderTabContent()}
         </div>
       </main>
+
+      {/* Analytics Widget - Only show when profile is complete */}
+      {profileComplete && activeTab === 'overview' && analytics && (
+        <section className="analytics-widget">
+          <div className="widget-header">
+            <h2><FaChartLine /> Quick Analytics</h2>
+            <Link to="/analytics" className="view-all-link">
+              View Full Analytics <FaArrowRight />
+            </Link>
+          </div>
+          
+          <div className="analytics-grid">
+            {/* Weight Progress */}
+            <div className="analytics-card">
+              <h3><FaWeight /> Weight Progress</h3>
+              <div className="progress-circle">
+                <div className="progress-ring">
+                  <div 
+                    className="progress-fill" 
+                    style={{ 
+                      transform: `rotate(${analytics.goalProgress.weightProgress * 3.6}deg)` 
+                    }}
+                  ></div>
+                </div>
+                <div className="progress-text">
+                  {analytics.goalProgress.weightProgress}%
+                </div>
+              </div>
+            </div>
+            
+            {/* Workout Progress */}
+            <div className="analytics-card">
+              <h3><FaRunning /> Workout Goals</h3>
+              <div className="progress-circle">
+                <div className="progress-ring">
+                  <div 
+                    className="progress-fill" 
+                    style={{ 
+                      transform: `rotate(${analytics.goalProgress.workoutProgress * 3.6}deg)` 
+                    }}
+                  ></div>
+                </div>
+                <div className="progress-text">
+                  {analytics.goalProgress.workoutProgress}%
+                </div>
+              </div>
+            </div>
+            
+            {/* Nutrition Progress */}
+            <div className="analytics-card">
+              <h3><FaUtensils /> Nutrition Goals</h3>
+              <div className="progress-circle">
+                <div className="progress-ring">
+                  <div 
+                    className="progress-fill" 
+                    style={{ 
+                      transform: `rotate(${analytics.goalProgress.nutritionProgress * 3.6}deg)` 
+                    }}
+                  ></div>
+                </div>
+                <div className="progress-text">
+                  {analytics.goalProgress.nutritionProgress}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Feature Cards - Only show on overview tab */}
       {activeTab === 'overview' && (
