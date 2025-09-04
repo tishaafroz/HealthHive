@@ -68,18 +68,8 @@ const ProfileSetup = () => {
         }
         break;
       case 2: // Goals
-        if (!formData.goals.primaryGoal) {
-          return 'Please select your primary goal';
-        }
-        // Only require weeklyGoal for weight loss/gain goals
-        if ((formData.goals.primaryGoal === 'lose_weight' || formData.goals.primaryGoal === 'gain_weight') && 
-            !formData.goals.weeklyGoal) {
-          return 'Please set your weekly goal';
-        }
-        // For weight loss/gain goals, also require target weight
-        if ((formData.goals.primaryGoal === 'lose_weight' || formData.goals.primaryGoal === 'gain_weight') && 
-            !formData.goals.targetWeight) {
-          return 'Please set your target weight';
+        if (!formData.goals.primaryGoal || !formData.goals.weeklyGoal) {
+          return 'Please set your goals';
         }
         break;
       default:
@@ -133,15 +123,18 @@ const ProfileSetup = () => {
         weight: parseFloat(formData.personalDetails.weight),
         gender: formData.personalDetails.gender,
         activityLevel: formData.activityLevel,
-        healthGoal: formData.goals.primaryGoal, // Map primaryGoal to healthGoal
-        targetWeight: formData.goals.targetWeight ? parseFloat(formData.goals.targetWeight) : null,
-        dietaryPreferences: formData.dietaryPreferences.restrictions || [],
-        profileCompleted: true
+        goals: {
+          primaryGoal: formData.goals.primaryGoal,
+          targetWeight: formData.goals.targetWeight ? parseFloat(formData.goals.targetWeight) : null,
+          weeklyGoal: formData.goals.weeklyGoal
+        },
+        dietaryPreferences: formData.dietaryPreferences,
+        profileComplete: true
       };
 
       // Update user profile
       const token = localStorage.getItem('token');
-      await axios.put('/api/users/profile', profileData, {
+      await axios.put('/api/users/update-profile', profileData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'

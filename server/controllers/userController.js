@@ -19,7 +19,7 @@ function calculateProfileCompletion(user) {
   if (user.healthGoal === 'lose_weight' || user.healthGoal === 'gain_weight') {
     if (user.targetWeight) filled++;
   } else {
-    filled++;
+    filled++; // For other goals, consider this field as filled
   }
 
   const total = requiredFields.length + 1; // +1 for targetWeight/goal logic
@@ -48,11 +48,12 @@ function validateProfileData(data, currentWeight) {
     errors.gender = 'Gender is required.';
   }
   // Activity Level
-  if (!['sedentary', 'light', 'moderate', 'active', 'very_active'].includes(data.activityLevel)) {
+  if (!['sedentary', 'light', 'moderate', 'active', 'very_active', 'extremely_active'].includes(data.activityLevel)) {
     errors.activityLevel = 'Invalid activity level.';
   }
   // Health Goal
-  if (!['lose_weight', 'gain_weight', 'maintain_weight'].includes(data.healthGoal)) {
+  const validGoals = ['lose_weight', 'gain_weight', 'maintain_weight', 'build_muscle', 'improve_fitness'];
+  if (!validGoals.includes(data.healthGoal)) {
     errors.healthGoal = 'Invalid health goal.';
   }
   // Target Weight
@@ -79,6 +80,11 @@ exports.updateUserProfile = async (req, res) => {
     const userId = req.user.id; // Assumes auth middleware sets req.user
     const profileData = req.body;
 
+    console.log('Profile update request:', {
+      userId,
+      profileData
+    });
+
     // Fetch current user for weight comparison
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found.' });
@@ -86,6 +92,7 @@ exports.updateUserProfile = async (req, res) => {
     // Validate input
     const errors = validateProfileData(profileData, user.weight);
     if (Object.keys(errors).length > 0) {
+      console.log('Validation errors:', errors);
       return res.status(400).json({ errors });
     }
 

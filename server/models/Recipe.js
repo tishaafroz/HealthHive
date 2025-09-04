@@ -1,248 +1,73 @@
 const mongoose = require('mongoose');
 
-const RecipeSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    required: true
-  },
-  prepTime: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  cookTime: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  totalTime: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  difficulty: {
-    type: String,
-    required: true,
-    enum: ['easy', 'medium', 'hard']
-  },
-  servings: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  
-  ingredients: [{
-    name: {
-      type: String,
-      required: true
-    },
-    amount: {
-      type: Number,
-      required: true
-    },
-    unit: {
-      type: String,
-      required: true
-    },
-    calories: Number,
-    protein: Number,
-    carbs: Number,
-    fat: Number,
-    alternatives: [String],
-    isOptional: {
-      type: Boolean,
-      default: false
-    }
-  }],
-  
-  instructions: [{
-    stepNumber: {
-      type: Number,
-      required: true
-    },
-    instruction: {
-      type: String,
-      required: true
-    },
-    estimatedTime: Number,
-    tips: String,
-    imageUrl: String
-  }],
-  
-  nutrition: {
-    caloriesPerServing: {
-      type: Number,
-      required: true
-    },
-    proteinPerServing: {
-      type: Number,
-      required: true
-    },
-    carbsPerServing: {
-      type: Number,
-      required: true
-    },
-    fatPerServing: {
-      type: Number,
-      required: true
-    },
-    fiberPerServing: Number,
-    sugarPerServing: Number,
-    sodiumPerServing: Number,
-    vitamins: {
-      vitaminA: Number,
-      vitaminC: Number,
-      vitaminD: Number,
-      iron: Number,
-      calcium: Number
-    }
-  },
-  
-  dietaryTags: [{
-    type: String,
-    enum: ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'keto', 'paleo', 'low-carb', 'low-fat', 'high-protein']
-  }],
-  
-  mealType: [{
-    type: String,
-    required: true,
-    enum: ['breakfast', 'lunch', 'dinner', 'snack']
-  }],
-  
-  healthBenefits: [{
-    type: String,
-    enum: ['weight-loss', 'muscle-building', 'heart-healthy', 'diabetic-friendly', 'immune-boosting', 'energy-boosting']
-  }],
-  
-  ratings: {
-    average: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5
-    },
-    count: {
-      type: Number,
-      default: 0
-    },
-    distribution: {
-      five: { type: Number, default: 0 },
-      four: { type: Number, default: 0 },
-      three: { type: Number, default: 0 },
-      two: { type: Number, default: 0 },
-      one: { type: Number, default: 0 }
-    }
-  },
-  
-  reviews: [{
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    rating: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 5
-    },
-    comment: String,
-    helpfulVotes: {
-      type: Number,
-      default: 0
-    },
-    photos: [String],
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-  
-  images: [{
-    url: {
-      type: String,
-      required: true
-    },
-    type: {
-      type: String,
-      enum: ['hero', 'step', 'final', 'ingredient'],
-      required: true
-    },
-    alt: String
-  }],
-  
-  videoUrl: String,
-  sourceUrl: String,
-  
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  
-  verifiedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  
-  popularityScore: {
-    type: Number,
-    default: 0
-  },
-  
-  successRate: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 0
-  },
-  
-  averageCookingTime: {
-    type: Number,
-    min: 0
-  },
-  
-  commonModifications: [String],
-  
-  isPublic: {
-    type: Boolean,
-    default: true
-  },
-  
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-  
-  isFeatured: {
-    type: Boolean,
-    default: false
-  },
-  
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
+const instructionStepSchema = new mongoose.Schema({
+    stepNumber: { type: Number, required: true },
+    description: { type: String, required: true },
+    timerDuration: { type: Number }, // Duration in minutes
+    videoUrl: { type: String }
 });
 
-// Indexes for efficient queries
-RecipeSchema.index({ name: 'text', description: 'text' });
-RecipeSchema.index({ 'nutrition.caloriesPerServing': 1 });
-RecipeSchema.index({ dietaryTags: 1 });
-RecipeSchema.index({ mealType: 1 });
-RecipeSchema.index({ difficulty: 1 });
-RecipeSchema.index({ 'ratings.average': -1 });
-RecipeSchema.index({ popularityScore: -1 });
-RecipeSchema.index({ createdAt: -1 });
+const nutritionSchema = new mongoose.Schema({
+    servingSize: { type: Number, required: true },
+    calories: { type: Number, required: true },
+    proteins: { type: Number, required: true },
+    carbs: { type: Number, required: true },
+    fats: { type: Number, required: true }
+});
 
-module.exports = mongoose.model('Recipe', RecipeSchema);
+const healthScoreDetailsSchema = new mongoose.Schema({
+    breakdown: {
+        calories: Number,
+        protein: Number,
+        carbs: Number,
+        fats: Number,
+        nutrientDensity: Number
+    },
+    nutritionDetails: {
+        caloriesPerServing: Number,
+        proteinPercentage: Number,
+        carbPercentage: Number,
+        fatPercentage: Number
+    }
+});
+
+const recipeSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    originalId: { type: String }, // For storing Spoonacular recipe IDs
+    name: { type: String, required: true },
+    cuisine: { type: String, required: true },
+    ingredients: [{ 
+        name: { type: String, required: true },
+        amount: { type: Number, required: true },
+        unit: { type: String, required: true }
+    }],
+    instructions: [instructionStepSchema],
+    category: { type: String, required: true },
+    popularity: { type: Number, default: 0 },
+    preparationTime: { type: Number, required: true },
+    complexity: { type: String, enum: ['Easy', 'Medium', 'Hard'], required: true },
+    nutritionalInfo: nutritionSchema,
+    videoUrl: { type: String },
+    isFavorite: { type: Boolean, default: false },
+    tags: [String],
+    image: { 
+        type: String,
+        default: null
+    },
+    healthScore: {
+        type: Number,
+        default: 0
+    },
+    healthScoreDetails: {
+        type: healthScoreDetailsSchema,
+        default: null
+    }
+}, {
+    timestamps: true
+});
+
+// Add compound index for better query performance
+recipeSchema.index({ userId: 1, originalId: 1 });
+recipeSchema.index({ userId: 1, isFavorite: 1 });
+
+module.exports = mongoose.model('Recipe', recipeSchema);

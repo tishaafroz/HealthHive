@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
-import { FaUtensils, FaCalendar, FaPlus, FaEdit, FaSearch } from 'react-icons/fa';
-import RecipeSearch from './RecipeSearch';
+import api from '../utils/axios';
+import { FaUtensils, FaCalendar, FaPlus, FaEdit } from 'react-icons/fa';
 import '../styles/MealPlanner.css';
 
 const MealPlanner = () => {
   const { user } = useAuth();
   const [mealPlan, setMealPlan] = useState(null);
-  const [nutritionTargets, setNutritionTargets] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
-  const [showRecipeSearch, setShowRecipeSearch] = useState(false);
-  const [selectedMealIndex, setSelectedMealIndex] = useState(null);
   const [generateParams, setGenerateParams] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -20,37 +16,14 @@ const MealPlanner = () => {
   });
 
   const fetchCurrentMealPlan = useCallback(async () => {
+    if (!user) return;
+
     try {
-      const response = await axios.get('/api/meals/plan/current');
-      setMealPlan(response.data.data);
+      const response = await api.get('/api/meals/plan/current');
+      setMealPlan(response.data);
     } catch (error) {
       console.error('Error fetching meal plan:', error);
-      // Set empty meal plan if API fails
       setMealPlan(null);
-    }
-  }, []);
-
-  const fetchNutritionTargets = useCallback(async () => {
-    // Only fetch if user is available
-    if (!user || !user.id) {
-      console.log('User not available yet, skipping nutrition targets fetch');
-      return;
-    }
-
-    try {
-      const response = await axios.get(`/api/meals/nutrition/targets/${user.id}`);
-      setNutritionTargets(response.data.data);
-    } catch (error) {
-      console.error('Error fetching nutrition targets:', error);
-      // Set default nutrition targets if API fails
-      setNutritionTargets({
-        dailyCalories: 2000,
-        macros: {
-          protein: { grams: 150, percentage: 30 },
-          carbohydrates: { grams: 200, percentage: 40 },
-          fat: { grams: 67, percentage: 30 }
-        }
-      });
     }
   }, [user]);
 
@@ -58,269 +31,129 @@ const MealPlanner = () => {
     fetchCurrentMealPlan();
   }, [fetchCurrentMealPlan]);
 
-  // Fetch nutrition targets when user becomes available
-  useEffect(() => {
-    if (user && user.id) {
-      fetchNutritionTargets();
-    }
-  }, [user, fetchNutritionTargets]);
-
   const generateMealPlan = async () => {
-    if (!user || !user.id) {
+    if (!user) {
       alert('Please log in to generate a meal plan.');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await axios.post('/api/meals/plan/generate', {
-        ...generateParams,
-        userId: user.id
-      });
-      setMealPlan(response.data.data);
+      const response = await api.post('/api/meals/plan/generate', generateParams);
+      
+      setMealPlan(response.data);
       setShowGenerateForm(false);
-      fetchNutritionTargets(); // Refresh targets
     } catch (error) {
       console.error('Error generating meal plan:', error);
-      alert('Error generating meal plan. Please try again.');
+      alert('Failed to generate meal plan. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch (error) {
-      return 'Invalid Date';
-    }
+  const handleGenerateParamsChange = (e) => {
+    const { name, value } = e.target;
+    setGenerateParams(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
-
-  // Show loading state while user is being fetched
-  if (!user) {
-    return (
-      <div className="meal-planner">
-        <div className="planner-header">
-          <h2><FaUtensils /> Meal Planning & Nutrition</h2>
-          <p>Loading user information...</p>
-        </div>
-        <div className="loading-state">
-          <p>Please wait while we load your information...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="meal-planner">
-      <div className="planner-header">
-        <h2><FaUtensils /> Meal Planning & Nutrition</h2>
-        <p>Generate personalized meal plans based on your health goals and preferences</p>
+      <div className="meal-planner-header">
+        <h2><FaUtensils /> Meal Planner</h2>
+        {!mealPlan && (
+          <button 
+            className="generate-button"
+            onClick={() => setShowGenerateForm(true)}
+            disabled={loading}
+          >
+            <FaPlus /> Generate Meal Plan
+          </button>
+        )}
       </div>
 
-      {!mealPlan ? (
-        <div className="no-meal-plan">
-          <div className="no-plan-content">
-            <h3>No Active Meal Plan</h3>
-            <p>Generate a personalized meal plan to get started with your nutrition journey.</p>
-            <button 
-              className="generate-plan-btn"
-              onClick={() => setShowGenerateForm(true)}
-            >
-              <FaPlus /> Generate Meal Plan
+      {loading && <div className="loading">Generating your meal plan...</div>}
+
+      {showGenerateForm && (
+        <div className="generate-form">
+          <h3>Generate Meal Plan</h3>
+          <div className="form-group">
+            <label>Start Date:</label>
+            <input
+              type="date"
+              name="startDate"
+              value={generateParams.startDate}
+              onChange={handleGenerateParamsChange}
+            />
+          </div>
+          <div className="form-group">
+            <label>End Date:</label>
+            <input
+              type="date"
+              name="endDate"
+              value={generateParams.endDate}
+              onChange={handleGenerateParamsChange}
+            />
+          </div>
+          <div className="form-actions">
+            <button onClick={() => setShowGenerateForm(false)}>Cancel</button>
+            <button onClick={generateMealPlan} disabled={loading}>
+              Generate
             </button>
           </div>
         </div>
-      ) : (
-        <div className="meal-plan-content">
-          <div className="plan-overview">
-            <div className="plan-header">
-              <h3>{mealPlan.name || 'My Meal Plan'}</h3>
-              <div className="plan-actions">
-                <button className="edit-plan-btn">
-                  <FaEdit /> Edit Plan
-                </button>
-                <button className="regenerate-plan-btn" onClick={() => setShowGenerateForm(true)}>
-                  <FaPlus /> Regenerate
-                </button>
+      )}
+
+      {mealPlan && mealPlan.days && (
+        <div className="meal-plan">
+          {mealPlan.days.map((day, dayIndex) => (
+            <div key={day.date} className="meal-day">
+              <h3>
+                <FaCalendar /> {new Date(day.date).toLocaleDateString()}
+              </h3>
+              <div className="meals">
+                {day.meals.map((meal, mealIndex) => (
+                  <div key={`${dayIndex}-${mealIndex}`} className="meal-card">
+                    <div className="meal-header">
+                      <h4>{meal.name}</h4>
+                      <button
+                        className="edit-button"
+                        onClick={() => {
+                          // Edit functionality can be added here
+                        }}
+                      >
+                        <FaEdit />
+                      </button>
+                    </div>
+                    {meal.image && <img src={meal.image} alt={meal.name} />}
+                    <div className="meal-details">
+                      <p>Calories: {meal.calories}kcal</p>
+                      <p>Protein: {meal.protein}g</p>
+                      <p>Carbs: {meal.carbs}g</p>
+                      <p>Fat: {meal.fat}g</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-
-            <div className="plan-dates">
-              <span>
-                <FaCalendar /> 
-                {formatDate(mealPlan.startDate)} - {formatDate(mealPlan.endDate)}
-              </span>
-            </div>
-          </div>
-
-          {nutritionTargets && (
-            <div className="nutrition-overview">
-              <h4>Daily Nutrition Targets</h4>
-              <div className="nutrition-grid">
-                <div className="nutrition-card">
-                  <div className="nutrition-header">Calories</div>
-                  <div className="nutrition-value">
-                    {nutritionTargets.dailyCalories || 'N/A'}
-                  </div>
-                  <div className="nutrition-unit">cal/day</div>
-                </div>
-                <div className="nutrition-card">
-                  <div className="nutrition-header">Protein</div>
-                  <div className="nutrition-value">
-                    {nutritionTargets.macros?.protein?.grams || 'N/A'}g
-                  </div>
-                  <div className="nutrition-unit">
-                    {nutritionTargets.macros?.protein?.percentage || 'N/A'}%
-                  </div>
-                </div>
-                <div className="nutrition-card">
-                  <div className="nutrition-header">Carbs</div>
-                  <div className="nutrition-value">
-                    {nutritionTargets.macros?.carbohydrates?.grams || 'N/A'}g
-                  </div>
-                  <div className="nutrition-unit">
-                    {nutritionTargets.macros?.carbohydrates?.percentage || 'N/A'}%
-                  </div>
-                </div>
-                <div className="nutrition-card">
-                  <div className="nutrition-header">Fat</div>
-                  <div className="nutrition-value">
-                    {nutritionTargets.macros?.fat?.grams || 'N/A'}g
-                  </div>
-                  <div className="nutrition-unit">
-                    {nutritionTargets.macros?.fat?.percentage || 'N/A'}%
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {mealPlan.meals && mealPlan.meals.length > 0 ? (
-            <div className="meals-list">
-              <h4>Your Meals</h4>
-              {mealPlan.meals.map((meal, index) => (
-                <div key={index} className="meal-item">
-                  <div className="meal-header">
-                    <h5>{meal.name || `Meal ${index + 1}`}</h5>
-                    <span className="meal-time">{meal.time || 'TBD'}</span>
-                    <button 
-                      className="add-recipe-btn"
-                      onClick={() => {
-                        setSelectedMealIndex(index);
-                        setShowRecipeSearch(true);
-                      }}
-                    >
-                      <FaSearch /> Add Recipe
-                    </button>
-                  </div>
-                  <div className="meal-foods">
-                    {meal.foods && meal.foods.map((food, foodIndex) => (
-                      <div key={foodIndex} className="food-item">
-                        <span className="food-name">{food.name || 'Unknown Food'}</span>
-                        <span className="food-portion">{food.portion || '1 serving'}</span>
-                        {food.recipeId && (
-                          <span className="recipe-badge">Recipe</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="no-meals">
-              <p>No meals planned yet. Generate a meal plan to get started!</p>
-            </div>
-          )}
-
-          {/* Recipe Search Modal */}
-          {showRecipeSearch && (
-            <div className="modal-overlay">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h3>Add Recipe to {mealPlan.meals[selectedMealIndex]?.name || `Meal ${selectedMealIndex + 1}`}</h3>
-                  <button 
-                    className="close-modal-btn"
-                    onClick={() => setShowRecipeSearch(false)}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="modal-body">
-                  <RecipeSearch 
-                    onSelectRecipe={async (recipe) => {
-                      try {
-                        // Add recipe to meal plan
-                        const response = await axios.post('/api/meals/plan/add-recipe', {
-                          mealPlanId: mealPlan._id,
-                          mealIndex: selectedMealIndex,
-                          recipeId: recipe._id
-                        });
-                        
-                        // Update meal plan with new data
-                        setMealPlan(response.data.data);
-                        setShowRecipeSearch(false);
-                      } catch (error) {
-                        console.error('Error adding recipe to meal:', error);
-                        alert('Failed to add recipe to meal. Please try again.');
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+          ))}
         </div>
       )}
 
-      {/* Generate Meal Plan Form */}
-      {showGenerateForm && (
-        <div className="generate-form-overlay">
-          <div className="generate-form">
-            <h3>Generate New Meal Plan</h3>
-            <div className="form-group">
-              <label>Start Date:</label>
-              <input
-                type="date"
-                value={generateParams.startDate}
-                onChange={(e) => setGenerateParams(prev => ({
-                  ...prev,
-                  startDate: e.target.value
-                }))}
-              />
-            </div>
-            <div className="form-group">
-              <label>End Date:</label>
-              <input
-                type="date"
-                value={generateParams.endDate}
-                onChange={(e) => setGenerateParams(prev => ({
-                  ...prev,
-                  endDate: e.target.value
-                }))}
-              />
-            </div>
-            <div className="form-actions">
-              <button 
-                className="btn btn-secondary"
-                onClick={() => setShowGenerateForm(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn btn-primary"
-                onClick={generateMealPlan}
-                disabled={loading}
-              >
-                {loading ? 'Generating...' : 'Generate Plan'}
-              </button>
-            </div>
+      {!mealPlan && !loading && !showGenerateForm && (
+        <div className="no-meal-plan">
+          <div className="empty-state">
+            <FaUtensils className="empty-icon" />
+            <h3>No Meal Plan Yet</h3>
+            <p>Generate your first meal plan to get started with organized eating!</p>
+            <button 
+              className="generate-button primary"
+              onClick={() => setShowGenerateForm(true)}
+            >
+              <FaPlus /> Create Meal Plan
+            </button>
           </div>
         </div>
       )}
@@ -328,4 +161,4 @@ const MealPlanner = () => {
   );
 };
 
-export default MealPlanner; 
+export default MealPlanner;

@@ -7,6 +7,8 @@ const foodController = require('../controllers/foodController');
 router.get('/search', auth, foodController.searchFood);
 router.get('/nutrients/:foodId', auth, foodController.getNutrients);
 router.get('/recipes/search', auth, foodController.searchRecipes);
+router.get('/recipes/nutrients', auth, foodController.searchRecipesByNutrients);
+router.post('/generate-meal-plan', auth, foodController.generateMealPlan);
 
 // User's personal food management
 router.post('/favorites', auth, foodController.saveFoodToFavorites);

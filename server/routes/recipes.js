@@ -1,26 +1,26 @@
 const express = require('express');
-const router = express.Router();
+const { 
+    searchRecipes, 
+    getRecipeDetails,
+    getRecipeInformation,
+    toggleFavorite,
+    getFavorites,
+    updateInstructions,
+    saveRecipe
+} = require('../controllers/recipeController');
 const auth = require('../middleware/auth');
-const RecipeController = require('../controllers/recipeController');
 
-// Create a new recipe
-router.post('/', auth, async (req, res) => {
-  await RecipeController.createRecipe(req, res);
-});
+const router = express.Router();
 
-// Get personalized recipe recommendations
-router.get('/recommendations', auth, async (req, res) => {
-  await RecipeController.getRecommendations(req, res);
-});
+// Public routes
+router.get('/search', searchRecipes);
+router.get('/:id/information', getRecipeInformation);
 
-// Search recipes with filters
-router.get('/search', async (req, res) => {
-  await RecipeController.searchRecipes(req, res);
-});
-
-// Track recipe interaction
-router.post('/:recipeId/interaction', auth, async (req, res) => {
-  await RecipeController.trackInteraction(req, res);
-});
+// Protected routes
+router.get('/:id', auth, getRecipeDetails);
+router.post('/:recipeId/favorite', auth, toggleFavorite);
+router.get('/user/favorites', auth, getFavorites);
+router.put('/:recipeId/instructions', auth, updateInstructions);
+router.post('/save', auth, saveRecipe);
 
 module.exports = router;

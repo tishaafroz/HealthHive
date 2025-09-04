@@ -17,14 +17,14 @@ const UserSchema = new mongoose.Schema({
   weight: { type: Number, min: 20, max: 500 }, // kg
   activityLevel: { 
     type: String, 
-    enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'],
+    enum: ['sedentary', 'light', 'moderate', 'active', 'very_active', 'extremely_active'],
     default: 'moderate'
   },
   
   // Goals
   healthGoal: { 
     type: String, 
-    enum: ['lose_weight', 'gain_weight', 'maintain_weight'],
+    enum: ['lose_weight', 'gain_weight', 'maintain_weight', 'build_muscle', 'improve_fitness'],
     default: 'maintain_weight'
   },
   targetWeight: { type: Number, min: 20, max: 500 },

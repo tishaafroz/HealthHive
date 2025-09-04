@@ -1,62 +1,242 @@
 const Food = require('../models/Food');
 const axios = require('axios');
 
-// Edamam API configuration
-const EDAMAM_APP_ID = process.env.EDAMAM_APP_ID;
-const EDAMAM_APP_KEY = process.env.EDAMAM_APP_KEY;
-const EDAMAM_BASE_URL = 'https://api.edamam.com/api/food-database/v2';
+// Spoonacular API configuration
+const SPOONACULAR_API_KEY = process.env.SPOONACULAR_API_KEY;
+const SPOONACULAR_BASE_URL = 'https://api.spoonacular.com';
 
-// Search foods from Edamam API
+// Search foods using Spoonacular API
 exports.searchFood = async (req, res) => {
   try {
     const { query } = req.query;
-    const response = await axios.get(`${EDAMAM_BASE_URL}/parser`, {
+    console.log('Searching for food with Spoonacular:', query);
+    
+    if (!SPOONACULAR_API_KEY) {
+      return res.status(500).json({ message: 'API key not configured' });
+    }
+
+    const options = {
+      method: 'GET',
+      url: `${SPOONACULAR_BASE_URL}/recipes/complexSearch`,
       params: {
-        app_id: EDAMAM_APP_ID,
-        app_key: EDAMAM_APP_KEY,
-        ingr: query
+        apiKey: SPOONACULAR_API_KEY,
+        query: query,
+        instructionsRequired: 'true',
+        addRecipeInformation: 'true',
+        addRecipeNutrition: 'true',
+        number: '20',
+        offset: '0'
       }
-    });
-    res.json(response.data);
+    };
+
+    const response = await axios.request(options);
+    
+    // Transform Spoonacular data to match our expected format
+    const transformedData = {
+      parsed: [],
+      hints: response.data.results.map(recipe => ({
+        food: {
+          foodId: recipe.id.toString(),
+          label: recipe.title,
+          nutrients: {
+            ENERC_KCAL: recipe.nutrition?.nutrients?.find(n => n.name === 'Calories')?.amount || 0,
+            PROCNT: recipe.nutrition?.nutrients?.find(n => n.name === 'Protein')?.amount || 0,
+            FAT: recipe.nutrition?.nutrients?.find(n => n.name === 'Fat')?.amount || 0,
+            CHOCDF: recipe.nutrition?.nutrients?.find(n => n.name === 'Carbohydrates')?.amount || 0
+          },
+          category: 'Recipe',
+          categoryLabel: 'Recipe',
+          image: recipe.image,
+          servings: recipe.servings || 1,
+          readyInMinutes: recipe.readyInMinutes || 30
+        }
+      }))
+    };
+    
+    res.json(transformedData);
   } catch (error) {
-    console.error('Error searching food:', error);
+    console.error('Error searching food with Spoonacular:', error.response?.data || error.message);
     res.status(500).json({ message: 'Error searching food database' });
   }
 };
 
-// Get nutrients for a specific food
+// Get nutrients for a specific food using Spoonacular
 exports.getNutrients = async (req, res) => {
   try {
     const { foodId } = req.params;
-    const response = await axios.get(`${EDAMAM_BASE_URL}/nutrients`, {
+    
+    if (!RAPIDAPI_KEY) {
+      return res.status(500).json({ message: 'API key not configured' });
+    }
+
+    const options = {
+      method: 'GET',
+      url: `${SPOONACULAR_BASE_URL}/recipes/${foodId}/information`,
       params: {
-        app_id: EDAMAM_APP_ID,
-        app_key: EDAMAM_APP_KEY,
-        ingredients: [{ foodId }]
+        includeNutrition: 'true'
+      },
+      headers: {
+        'x-rapidapi-host': 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
+        'x-rapidapi-key': RAPIDAPI_KEY
       }
+    };
+
+    const response = await axios.request(options);
+    
+    // Transform nutrition data to match expected format
+    const transformedData = {
+      ingredients: [{
+        parsed: [{
+          nutrientsKCal: response.data.nutrition?.nutrients?.find(n => n.name === 'Calories')?.amount || 0,
+          weight: 100,
+          nutrients: {}
+        }]
+      }]
+    };
+
+    // Map nutrition data
+    response.data.nutrition?.nutrients?.forEach(nutrient => {
+      const key = nutrient.name.toUpperCase().replace(/\s+/g, '_');
+      transformedData.ingredients[0].parsed[0].nutrients[key] = {
+        label: nutrient.name,
+        quantity: nutrient.amount,
+        unit: nutrient.unit
+      };
     });
-    res.json(response.data);
+
+    res.json(transformedData);
   } catch (error) {
     console.error('Error getting nutrients:', error);
     res.status(500).json({ message: 'Error retrieving nutrient information' });
   }
 };
 
-// Search recipes using Edamam Recipe API
+// Search recipes by nutrients for meal planning
+exports.searchRecipesByNutrients = async (req, res) => {
+  try {
+    const { 
+      minCalories = 0, 
+      maxCalories = 800, 
+      minProtein = 0, 
+      maxProtein = 100,
+      minCarbs = 0, 
+      maxCarbs = 100, 
+      minFat = 0, 
+      maxFat = 50,
+      number = 10 
+    } = req.query;
+
+    if (!RAPIDAPI_KEY) {
+      return res.status(500).json({ message: 'API key not configured' });
+    }
+
+    const options = {
+      method: 'GET',
+      url: `${SPOONACULAR_BASE_URL}/recipes/findByNutrients`,
+      params: {
+        minCalories: minCalories,
+        maxCalories: maxCalories,
+        minProtein: minProtein,
+        maxProtein: maxProtein,
+        minCarbs: minCarbs,
+        maxCarbs: maxCarbs,
+        minFat: minFat,
+        maxFat: maxFat,
+        number: number,
+        offset: '0'
+      },
+      headers: {
+        'x-rapidapi-host': 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
+        'x-rapidapi-key': RAPIDAPI_KEY
+      }
+    };
+
+    const response = await axios.request(options);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error searching recipes by nutrients:', error);
+    res.status(500).json({ message: 'Error searching recipes by nutrients' });
+  }
+};
+
+// Search recipes using Spoonacular Recipe API
 exports.searchRecipes = async (req, res) => {
   try {
-    const { query } = req.query;
-    const response = await axios.get(`https://api.edamam.com/search`, {
+    const { 
+      query = '', 
+      diet = '', 
+      intolerances = '', 
+      maxReadyTime = 45, 
+      number = 10 
+    } = req.query;
+
+    if (!RAPIDAPI_KEY) {
+      return res.status(500).json({ message: 'API key not configured' });
+    }
+
+    const options = {
+      method: 'GET',
+      url: `${SPOONACULAR_BASE_URL}/recipes/complexSearch`,
       params: {
-        app_id: process.env.EDAMAM_RECIPE_APP_ID,
-        app_key: process.env.EDAMAM_RECIPE_APP_KEY,
-        q: query
+        query: query,
+        diet: diet,
+        intolerances: intolerances,
+        instructionsRequired: 'true',
+        addRecipeInformation: 'true',
+        addRecipeNutrition: 'true',
+        maxReadyTime: maxReadyTime,
+        sort: 'popularity',
+        offset: '0',
+        number: number
+      },
+      headers: {
+        'x-rapidapi-host': 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
+        'x-rapidapi-key': RAPIDAPI_KEY
       }
-    });
+    };
+
+    const response = await axios.request(options);
     res.json(response.data);
   } catch (error) {
     console.error('Error searching recipes:', error);
     res.status(500).json({ message: 'Error searching recipes' });
+  }
+};
+
+// Generate meal plan using Spoonacular
+exports.generateMealPlan = async (req, res) => {
+  try {
+    const { 
+      timeFrame = 'day', 
+      targetCalories = 2000, 
+      diet = '', 
+      exclude = '' 
+    } = req.body;
+
+    if (!RAPIDAPI_KEY) {
+      return res.status(500).json({ message: 'API key not configured' });
+    }
+
+    const options = {
+      method: 'GET',
+      url: `${SPOONACULAR_BASE_URL}/recipes/mealplans/generate`,
+      params: {
+        timeFrame: timeFrame,
+        targetCalories: targetCalories,
+        diet: diet,
+        exclude: exclude
+      },
+      headers: {
+        'x-rapidapi-host': 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
+        'x-rapidapi-key': RAPIDAPI_KEY
+      }
+    };
+
+    const response = await axios.request(options);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error generating meal plan:', error);
+    res.status(500).json({ message: 'Error generating meal plan' });
   }
 };
 

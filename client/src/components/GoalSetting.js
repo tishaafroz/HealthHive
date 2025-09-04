@@ -43,7 +43,18 @@ const GoalSetting = ({ data, onUpdate, errors }) => {
   };
 
   const handleGoalSelect = (goalValue) => {
-    handleChange('primaryGoal', goalValue);
+    const updatedData = {
+      ...data,
+      primaryGoal: goalValue
+    };
+    
+    // For goals that don't need weekly targets, set a default value
+    if (goalValue === 'maintain_weight' || goalValue === 'build_muscle' || goalValue === 'improve_fitness') {
+      updatedData.weeklyGoal = 'maintain'; // Set a default value
+      updatedData.targetWeight = null; // Clear target weight
+    }
+    
+    onUpdate(updatedData);
   };
 
   return (

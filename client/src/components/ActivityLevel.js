@@ -10,16 +10,22 @@ const ActivityLevel = ({ data, onUpdate, errors }) => {
       icon: '🪑'
     },
     {
-      value: 'lightly_active',
+      value: 'light',
       title: 'Lightly Active',
       description: 'Light exercise 1-3 days/week',
       icon: '🚶'
     },
     {
-      value: 'moderately_active',
+      value: 'moderate',
       title: 'Moderately Active',
       description: 'Moderate exercise 3-5 days/week',
       icon: '🏃'
+    },
+    {
+      value: 'active',
+      title: 'Active',
+      description: 'Exercise 4-5 days/week',
+      icon: '🏃‍♂️'
     },
     {
       value: 'very_active',

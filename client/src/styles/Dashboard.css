@@ -1,15 +1,17 @@
+/* Dashboard - Clean Simple Design */
 .dashboard-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  color: white;
+  background: #f8fafc;
 }
 
 /* Header Styles */
 .dashboard-header {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 20px 0;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 15px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-content {
@@ -22,31 +24,81 @@
 }
 
 .brand-section {
-  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .brand-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 28px;
+  font-weight: 700;
+  color: #2d3748;
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .brand-subtitle {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin: 5px 0 0 0;
-  font-weight: 300;
+  font-size: 14px;
+  color: #718096;
+  margin: 0;
+  font-weight: 400;
 }
 
 .user-section {
   display: flex;
   align-items: center;
   gap: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #4299e1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.user-details h3 {
+  margin: 0;
+  color: #2d3748;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.profile-status {
+  margin: 0;
+  font-size: 12px;
+  color: #48bb78;
+  font-weight: 500;
+}
+
+.logout-button {
+  background: #e53e3e;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logout-button:hover {
+  background: #c53030;
 }
 
 .user-info {
@@ -114,8 +166,8 @@
 
 /* Navigation Styles */
 .dashboard-nav {
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
   padding: 0;
 }
 
@@ -124,19 +176,19 @@
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
-  gap: 5px;
+  gap: 0;
 }
 
 .nav-tab {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
-  padding: 20px 25px;
+  color: #718096;
+  padding: 18px 24px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1rem;
+  gap: 8px;
+  font-size: 16px;
   font-weight: 500;
   transition: all 0.3s ease;
   border-bottom: 3px solid transparent;
@@ -144,23 +196,24 @@
 }
 
 .nav-tab:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
+  color: #4a5568;
+  background: #f7fafc;
 }
 
 .nav-tab.active {
-  color: #64b5f6;
-  border-bottom-color: #64b5f6;
-  background: rgba(100, 181, 246, 0.1);
+  color: #4299e1;
+  border-bottom-color: #4299e1;
+  background: #ebf8ff;
 }
 
 .nav-tab svg {
-  font-size: 1.1rem;
+  font-size: 18px;
 }
 
 /* Main Content Styles */
 .dashboard-main {
-  padding: 40px 20px;
+  padding: 30px 20px;
+  background: #f8fafc;
 }
 
 .main-container {
@@ -174,13 +227,13 @@
 }
 
 .profile-completion-alert {
-  background: rgba(255, 193, 7, 0.1);
-  border: 2px solid rgba(255, 193, 7, 0.3);
-  border-radius: 16px;
-  padding: 40px;
+  background: #fff3cd;
+  border: 2px solid #ffeaa7;
+  border-radius: 12px;
+  padding: 30px;
   max-width: 600px;
   margin: 0 auto;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .alert-header {
