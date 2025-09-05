@@ -5,7 +5,6 @@ import {
   FaUtensils, 
   FaCalendar, 
   FaPlus, 
-  FaEdit, 
   FaTimes, 
   FaSpinner,
   FaClock,
@@ -37,8 +36,6 @@ const MealPlanner = () => {
       mealsPerDay: 3
     }
   });
-  const [editingMeal, setEditingMeal] = useState(null);
-  const [showNutritionDetails, setShowNutritionDetails] = useState({});
 
   // Clear messages after timeout
   useEffect(() => {
@@ -463,16 +460,6 @@ const MealPlanner = () => {
                             </div>
                           )}
                         </div>
-                      </div>
-                      
-                      <div className="meal-actions">
-                        <button
-                          className="edit-button"
-                          onClick={() => setEditingMeal(meal)}
-                          title="Edit meal"
-                        >
-                          <FaEdit />
-                        </button>
                       </div>
                     </div>
                   ))}
