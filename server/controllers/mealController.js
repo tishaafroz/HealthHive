@@ -5,8 +5,8 @@ const User = require('../models/User');
 const axios = require('axios');
 
 // Spoonacular API configuration
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
-const SPOONACULAR_BASE_URL = 'https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com';
+const SPOONACULAR_API_KEY = process.env.SPOONACULAR_API_KEY;
+const SPOONACULAR_BASE_URL = 'https://api.spoonacular.com';
 
 // Calculate BMR using Mifflin-St Jeor equation
 const calculateBMR = (weight, height, age, gender) => {
@@ -76,47 +76,80 @@ const calculateNutritionTargets = (tdee, healthGoal, weight, height, age, gender
 // Generate meal plan
 exports.generateMealPlan = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id || req.user.id;
     const { startDate, endDate, preferences = {} } = req.body;
 
-    // Get user profile
-    const user = await User.findById(userId);
+    console.log('Generate meal plan request for user:', userId);
+
+    // Get user profile - req.user should already have all the data
+    const user = req.user;
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    console.log('User profile data:', {
+      age: user.age,
+      gender: user.gender,
+      height: user.height,
+      weight: user.weight,
+      activityLevel: user.activityLevel,
+      healthGoal: user.healthGoal
+    });
 
     // Validate that user profile is complete with all required fields
     const requiredFields = ['age', 'gender', 'height', 'weight', 'activityLevel', 'healthGoal'];
     const missingFields = requiredFields.filter(field => !user[field]);
     
     if (missingFields.length > 0) {
-      throw new Error(`Missing required profile fields: ${missingFields.join(', ')}`);
+      return res.status(400).json({ 
+        message: `Missing required profile fields: ${missingFields.join(', ')}`,
+        missingFields
+      });
     }
 
     // Calculate or get nutrition targets
     let nutritionTargets = await NutritionTargets.findOne({ userId });
     
     if (!nutritionTargets) {
+      console.log('Calculating new nutrition targets...');
+      
       // Calculate new targets
       const bmr = calculateBMR(user.weight, user.height, user.age, user.gender);
       
       if (isNaN(bmr)) {
-        throw new Error('Invalid values for BMR calculation. Please check height, weight, age, and gender values.');
+        return res.status(400).json({ 
+          message: 'Invalid values for BMR calculation. Please check height, weight, age, and gender values.',
+          userValues: { height: user.height, weight: user.weight, age: user.age, gender: user.gender }
+        });
       }
+      
+      console.log('BMR calculated:', bmr);
       
       const tdee = calculateTDEE(bmr, user.activityLevel);
       
       if (isNaN(tdee)) {
-        throw new Error('Invalid activity level for TDEE calculation.');
+        return res.status(400).json({ 
+          message: 'Invalid activity level for TDEE calculation.',
+          activityLevel: user.activityLevel,
+          supportedLevels: ['sedentary', 'light', 'moderate', 'active', 'very_active', 'extremely_active']
+        });
       }
+      
+      console.log('TDEE calculated:', tdee);
       
       const targets = calculateNutritionTargets(
         tdee, user.healthGoal, user.weight, user.height, user.age, user.gender
       );
 
+      console.log('Nutrition targets calculated:', targets);
+
       // Validate targets before creating NutritionTargets
       if (!targets || Object.values(targets).some(val => val === null || val === undefined)) {
-        throw new Error('Invalid nutrition target calculations. Please check all input values.');
+        return res.status(400).json({ 
+          message: 'Invalid nutrition target calculations. Please check all input values.',
+          targets
+        });
       }
 
       const nutritionTargetData = {
@@ -209,7 +242,7 @@ async function generateDailyMealPlan(nutritionTargets, dietaryPreferences, prefe
     breakfast: 0.25, // 25%
     lunch: 0.30,     // 30%
     dinner: 0.35,    // 35%
-    snacks: 0.10     // 10%
+    snack: 0.10     // 10%
   };
 
   const dailyPlan = {
@@ -240,27 +273,29 @@ async function generateDailyMealPlan(nutritionTargets, dietaryPreferences, prefe
 
   // Generate meals for each meal type
   for (const [mealType, percentage] of Object.entries(mealDistribution)) {
-    if (mealType === 'snacks') {
+    if (mealType === 'snack') {
       // Generate 2 snacks
       for (let i = 0; i < 2; i++) {
-        const snack = await generateMeal(
+        const snackItems = await generateMeal(
           dailyCalories * percentage / 2,
           macros,
           dietaryPreferences,
           mealType
         );
-        dailyPlan.meals.push(snack);
-        updateDailyNutrition(dailyPlan, snack);
+        // Spread the array since generateMeal returns an array
+        dailyPlan.meals.push(...snackItems);
+        await updateDailyNutrition(dailyPlan, snackItems);
       }
     } else {
-      const meal = await generateMeal(
+      const mealItems = await generateMeal(
         dailyCalories * percentage,
         macros,
         dietaryPreferences,
         mealType
       );
-      dailyPlan.meals.push(meal);
-      updateDailyNutrition(dailyPlan, meal);
+      // Spread the array since generateMeal returns an array
+      dailyPlan.meals.push(...mealItems);
+      await updateDailyNutrition(dailyPlan, mealItems);
     }
   }
 
@@ -278,9 +313,13 @@ async function generateDailyMealPlan(nutritionTargets, dietaryPreferences, prefe
 // Generate individual meal using Spoonacular API
 async function generateMeal(targetCalories, macros, dietaryPreferences, mealType) {
   try {
-    if (!RAPIDAPI_KEY) {
-      console.log('RAPIDAPI_KEY not configured, using fallback meal');
-      return createFallbackMeal(mealType, targetCalories);
+    // For now, use fallback meals to ensure meal planning always works
+    // TODO: Enable Spoonacular API when valid API key is available
+    console.log(`Generating ${mealType} with target calories: ${targetCalories}`);
+    
+    if (!SPOONACULAR_API_KEY || SPOONACULAR_API_KEY === '4ebdb6c09d1a4f79a2fba5b2a9a8ec1d') {
+      console.log('Using fallback meal generation (Spoonacular API not configured or invalid key)');
+      return await createFallbackMeal(mealType, targetCalories);
     }
 
     // Map dietary preferences to Spoonacular diet types
@@ -308,7 +347,7 @@ async function generateMeal(targetCalories, macros, dietaryPreferences, mealType
       breakfast: ['breakfast', 'pancakes', 'oatmeal', 'eggs', 'toast'],
       lunch: ['salad', 'sandwich', 'soup', 'bowl', 'lunch'],
       dinner: ['chicken', 'beef', 'fish', 'pasta', 'rice'],
-      snacks: ['smoothie', 'nuts', 'fruit', 'yogurt', 'bar']
+      snack: ['smoothie', 'nuts', 'fruit', 'yogurt', 'bar']
     };
 
     const query = mealQueries[mealType] ? 
@@ -319,107 +358,176 @@ async function generateMeal(targetCalories, macros, dietaryPreferences, mealType
       method: 'GET',
       url: `${SPOONACULAR_BASE_URL}/recipes/findByNutrients`,
       params: {
+        apiKey: SPOONACULAR_API_KEY,
         minCalories: Math.max(targetCalories - 100, 0),
         maxCalories: targetCalories + 100,
         minProtein: Math.max((macros.protein.grams * 0.2) - 5, 0),
         maxProtein: (macros.protein.grams * 0.3) + 10,
         number: '5',
-        offset: '0'
-      },
-      headers: {
-        'x-rapidapi-host': 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
-        'x-rapidapi-key': RAPIDAPI_KEY
+        offset: '0',
+        ...(diet && { diet }),
+        ...(intolerances && { intolerances })
       }
     };
 
+    console.log('Calling Spoonacular API with options:', options);
     const response = await axios.request(options);
     
     if (response.data && response.data.length > 0) {
       const recipe = response.data[Math.floor(Math.random() * response.data.length)];
       
-      return [{
-        food: {
-          id: recipe.id,
-          name: recipe.title,
-          image: recipe.image,
-          nutrition: {
-            calories: recipe.calories || targetCalories,
-            protein: recipe.protein || Math.round(targetCalories * 0.2 / 4),
-            carbohydrates: recipe.carbs || Math.round(targetCalories * 0.5 / 4),
-            fat: recipe.fat || Math.round(targetCalories * 0.3 / 9)
-          }
+      // Create or find Food document for this recipe
+      const foodData = {
+        name: recipe.title,
+        brand: 'Spoonacular Recipe',
+        category: getCategoryFromMealType(mealType),
+        subcategory: mealType,
+        description: `Recipe from Spoonacular API - ${recipe.title}`,
+        nutrition: {
+          calories: recipe.calories || targetCalories,
+          protein: recipe.protein || Math.round(targetCalories * 0.2 / 4),
+          carbohydrates: recipe.carbs || Math.round(targetCalories * 0.5 / 4),
+          fat: recipe.fat || Math.round(targetCalories * 0.3 / 9),
+          fiber: recipe.fiber || 2,
+          sugar: recipe.sugar || 3,
+          sodium: recipe.sodium || 150
         },
+        servingSize: {
+          amount: 1,
+          unit: 'piece',
+          weightInGrams: 250
+        },
+        spoonacularId: recipe.id,
+        isRecipe: true
+      };
+
+      let food = await Food.findOne({ spoonacularId: recipe.id });
+      if (!food) {
+        food = await Food.create(foodData);
+      }
+
+      return [{
+        food: food._id,
         quantity: 1,
-        unit: 'serving',
+        unit: 'piece',
         mealType,
         timeSlot: getMealTimeSlot(mealType)
       }];
     } else {
-      return createFallbackMeal(mealType, targetCalories);
+      return await createFallbackMeal(mealType, targetCalories);
     }
   } catch (error) {
     console.error('Error generating meal with Spoonacular:', error);
-    return createFallbackMeal(mealType, targetCalories);
+    return await createFallbackMeal(mealType, targetCalories);
   }
 }
 
 // Create fallback meal when API is not available
-function createFallbackMeal(mealType, targetCalories) {
+async function createFallbackMeal(mealType, targetCalories) {
   const fallbackMeals = {
-    breakfast: {
-      name: 'Healthy Breakfast Bowl',
-      foods: ['Oatmeal with Banana and Almonds']
-    },
-    lunch: {
-      name: 'Balanced Lunch',
-      foods: ['Grilled Chicken with Brown Rice']
-    },
-    dinner: {
-      name: 'Nutritious Dinner',
-      foods: ['Salmon with Quinoa and Vegetables']
-    },
-    snacks: {
-      name: 'Healthy Snack',
-      foods: ['Apple with Peanut Butter']
-    }
+    breakfast: [
+      { name: 'Oatmeal with Banana and Almonds', calories: 350, protein: 12, carbs: 58, fat: 8 },
+      { name: 'Greek Yogurt with Berries', calories: 180, protein: 15, carbs: 20, fat: 6 },
+      { name: 'Scrambled Eggs with Toast', calories: 280, protein: 18, carbs: 25, fat: 12 },
+      { name: 'Smoothie Bowl with Granola', calories: 320, protein: 10, carbs: 45, fat: 11 }
+    ],
+    lunch: [
+      { name: 'Grilled Chicken Salad', calories: 420, protein: 35, carbs: 15, fat: 22 },
+      { name: 'Turkey and Avocado Wrap', calories: 380, protein: 25, carbs: 32, fat: 18 },
+      { name: 'Quinoa Buddha Bowl', calories: 450, protein: 20, carbs: 55, fat: 15 },
+      { name: 'Salmon and Brown Rice', calories: 480, protein: 30, carbs: 40, fat: 20 }
+    ],
+    dinner: [
+      { name: 'Baked Salmon with Vegetables', calories: 520, protein: 40, carbs: 25, fat: 28 },
+      { name: 'Chicken Stir-fry with Rice', calories: 480, protein: 35, carbs: 45, fat: 18 },
+      { name: 'Lean Beef with Sweet Potato', calories: 550, protein: 42, carbs: 35, fat: 22 },
+      { name: 'Tofu Curry with Quinoa', calories: 420, protein: 22, carbs: 50, fat: 16 }
+    ],
+    snack: [
+      { name: 'Apple with Peanut Butter', calories: 190, protein: 8, carbs: 16, fat: 12 },
+      { name: 'Mixed Nuts and Dried Fruit', calories: 160, protein: 5, carbs: 12, fat: 11 },
+      { name: 'Greek Yogurt with Honey', calories: 140, protein: 12, carbs: 18, fat: 3 },
+      { name: 'Hummus with Vegetables', calories: 120, protein: 6, carbs: 15, fat: 5 }
+    ]
   };
 
-  const meal = fallbackMeals[mealType] || fallbackMeals.lunch;
+  const mealOptions = fallbackMeals[mealType] || fallbackMeals.lunch;
+  const selectedMeal = mealOptions[Math.floor(Math.random() * mealOptions.length)];
   
-  return [{
-    food: {
-      id: Math.random().toString(36).substr(2, 9),
-      name: meal.foods[0],
-      image: null,
-      nutrition: {
-        calories: targetCalories,
-        protein: Math.round(targetCalories * 0.2 / 4),
-        carbohydrates: Math.round(targetCalories * 0.5 / 4),
-        fat: Math.round(targetCalories * 0.3 / 9)
-      }
+  // Scale the meal to match target calories
+  const scaleFactor = targetCalories / selectedMeal.calories;
+  
+  // Create unique identifier for this fallback meal
+  const fallbackId = `fallback_${mealType}_${selectedMeal.name.replace(/\s+/g, '_').toLowerCase()}`;
+  
+  // Create or find Food document for this fallback meal
+  const foodData = {
+    name: selectedMeal.name,
+    brand: 'HealthHive',
+    category: getCategoryFromMealType(mealType),
+    subcategory: mealType,
+    description: `Healthy ${mealType} option from HealthHive meal plans`,
+    nutrition: {
+      calories: Math.round(selectedMeal.calories * scaleFactor),
+      protein: Math.round(selectedMeal.protein * scaleFactor),
+      carbohydrates: Math.round(selectedMeal.carbs * scaleFactor),
+      fat: Math.round(selectedMeal.fat * scaleFactor),
+      fiber: Math.round(2 * scaleFactor),
+      sugar: Math.round(3 * scaleFactor),
+      sodium: Math.round(150 * scaleFactor)
     },
+    servingSize: {
+      amount: 1,
+      unit: 'piece',
+      weightInGrams: Math.round(250 * scaleFactor)
+    },
+    fallbackId: fallbackId,
+    isRecipe: false
+  };
+
+  let food = await Food.findOne({ fallbackId: fallbackId });
+  if (!food) {
+    food = await Food.create(foodData);
+  }
+
+  return [{
+    food: food._id,
     quantity: 1,
-    unit: 'serving',
+    unit: 'piece',
     mealType,
     timeSlot: getMealTimeSlot(mealType)
   }];
 }
 
 // Update daily nutrition totals
-function updateDailyNutrition(dailyPlan, meal) {
-  // Calculate nutrition from actual meal items
-  meal.forEach(item => {
-    const nutrition = item.food.nutrition;
-    const quantity = item.quantity || 1;
-    
-    dailyPlan.totalNutrition.calories += Math.round((nutrition.calories || 0) * quantity);
-    dailyPlan.totalNutrition.protein += Math.round((nutrition.protein || 0) * quantity);
-    dailyPlan.totalNutrition.carbohydrates += Math.round((nutrition.carbohydrates || 0) * quantity);
-    dailyPlan.totalNutrition.fat += Math.round((nutrition.fat || 0) * quantity);
-    dailyPlan.totalNutrition.fiber += Math.round((nutrition.fiber || 2) * quantity);
-    dailyPlan.totalNutrition.sugar += Math.round((nutrition.sugar || 3) * quantity);
-    dailyPlan.totalNutrition.sodium += Math.round((nutrition.sodium || 150) * quantity);
-  });
+async function updateDailyNutrition(dailyPlan, mealItems) {
+  // Since mealItems now contain Food document IDs, we need to populate them
+  for (const item of mealItems) {
+    const food = await Food.findById(item.food);
+    if (food) {
+      const nutrition = food.nutrition;
+      const quantity = item.quantity || 1;
+      
+      dailyPlan.totalNutrition.calories += Math.round((nutrition.calories || 0) * quantity);
+      dailyPlan.totalNutrition.protein += Math.round((nutrition.protein || 0) * quantity);
+      dailyPlan.totalNutrition.carbohydrates += Math.round((nutrition.carbohydrates || 0) * quantity);
+      dailyPlan.totalNutrition.fat += Math.round((nutrition.fat || 0) * quantity);
+      dailyPlan.totalNutrition.fiber += Math.round((nutrition.fiber || 2) * quantity);
+      dailyPlan.totalNutrition.sugar += Math.round((nutrition.sugar || 3) * quantity);
+      dailyPlan.totalNutrition.sodium += Math.round((nutrition.sodium || 150) * quantity);
+    }
+  }
+}
+
+// Get food category from meal type
+function getCategoryFromMealType(mealType) {
+  const categoryMap = {
+    breakfast: 'grains',
+    lunch: 'proteins',
+    dinner: 'proteins',
+    snacks: 'snacks'
+  };
+  return categoryMap[mealType] || 'proteins';
 }
 
 // Get meal time slot
@@ -428,7 +536,7 @@ function getMealTimeSlot(mealType) {
     breakfast: '8:00 AM',
     lunch: '12:00 PM',
     dinner: '7:00 PM',
-    snacks: '3:00 PM'
+    snack: '3:00 PM'
   };
   return timeSlots[mealType] || '';
 }

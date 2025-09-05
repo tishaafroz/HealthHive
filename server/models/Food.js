@@ -79,6 +79,11 @@ const FoodSchema = new mongoose.Schema({
   dataSource: { type: String, default: 'USDA' },
   verified: { type: Boolean, default: true },
   
+  // Recipe/API specific fields
+  spoonacularId: { type: Number, default: null },
+  fallbackId: { type: String, default: null },
+  isRecipe: { type: Boolean, default: false },
+  
   // Popularity and Search
   searchCount: { type: Number, default: 0 },
   isPopular: { type: Boolean, default: false },

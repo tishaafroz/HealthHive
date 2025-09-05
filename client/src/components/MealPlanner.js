@@ -20,7 +20,13 @@ const MealPlanner = () => {
 
     try {
       const response = await api.get('/api/meals/plan/current');
-      setMealPlan(response.data);
+      console.log('Current meal plan response:', response.data);
+      // Handle the response structure from backend
+      if (response.data.success && response.data.data) {
+        setMealPlan(response.data.data.mealPlan || response.data.data);
+      } else {
+        setMealPlan(response.data.data || response.data);
+      }
     } catch (error) {
       console.error('Error fetching meal plan:', error);
       setMealPlan(null);
@@ -41,7 +47,9 @@ const MealPlanner = () => {
     try {
       const response = await api.post('/api/meals/plan/generate', generateParams);
       
-      setMealPlan(response.data);
+      // Handle the response structure from backend
+      console.log('Meal plan response:', response.data);
+      setMealPlan(response.data.data || response.data);
       setShowGenerateForm(false);
     } catch (error) {
       console.error('Error generating meal plan:', error);
@@ -106,39 +114,131 @@ const MealPlanner = () => {
         </div>
       )}
 
-      {mealPlan && mealPlan.days && (
+      {mealPlan && mealPlan.dailyPlans && (
         <div className="meal-plan">
-          {mealPlan.days.map((day, dayIndex) => (
-            <div key={day.date} className="meal-day">
-              <h3>
-                <FaCalendar /> {new Date(day.date).toLocaleDateString()}
-              </h3>
-              <div className="meals">
-                {day.meals.map((meal, mealIndex) => (
-                  <div key={`${dayIndex}-${mealIndex}`} className="meal-card">
+          <div className="meal-plan-header">
+            <h3>Your Meal Plan</h3>
+            <div className="plan-info">
+              <span className="plan-duration">
+                {new Date(mealPlan.startDate).toLocaleDateString()} - {new Date(mealPlan.endDate).toLocaleDateString()}
+              </span>
+              <span className="plan-calories">
+                Target: {mealPlan.preferences?.calorieTarget || 'N/A'} calories/day
+              </span>
+            </div>
+          </div>
+          
+          {mealPlan.dailyPlans.map((day, dayIndex) => (
+            <div key={day.date || dayIndex} className="meal-day">
+              <div className="day-header">
+                <h4>
+                  <FaCalendar /> {new Date(day.date).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </h4>
+                <div className="day-nutrition">
+                  <span className="nutrition-item">
+                    <strong>{day.totalNutrition?.calories || 0}</strong> cal
+                  </span>
+                  <span className="nutrition-item">
+                    <strong>{day.totalNutrition?.protein || 0}g</strong> protein
+                  </span>
+                  <span className="nutrition-item">
+                    <strong>{day.totalNutrition?.carbohydrates || 0}g</strong> carbs
+                  </span>
+                  <span className="nutrition-item">
+                    <strong>{day.totalNutrition?.fat || 0}g</strong> fat
+                  </span>
+                </div>
+              </div>
+              
+              <div className="meals-grid">
+                {day.meals && day.meals.map((meal, mealIndex) => (
+                  <div key={meal._id || `${dayIndex}-${mealIndex}`} className="meal-card">
                     <div className="meal-header">
-                      <h4>{meal.name}</h4>
+                      <div className="meal-type-badge">{meal.mealType}</div>
+                      <div className="meal-time">{meal.timeSlot}</div>
+                    </div>
+                    
+                    <div className="meal-content">
+                      <h5>{meal.food?.name || 'Meal Item'}</h5>
+                      <div className="meal-details">
+                        <span>Quantity: {meal.quantity} {meal.unit}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="meal-actions">
                       <button
                         className="edit-button"
                         onClick={() => {
                           // Edit functionality can be added here
                         }}
+                        title="Edit meal"
                       >
                         <FaEdit />
                       </button>
                     </div>
-                    {meal.image && <img src={meal.image} alt={meal.name} />}
-                    <div className="meal-details">
-                      <p>Calories: {meal.calories}kcal</p>
-                      <p>Protein: {meal.protein}g</p>
-                      <p>Carbs: {meal.carbs}g</p>
-                      <p>Fat: {meal.fat}g</p>
-                    </div>
                   </div>
                 ))}
               </div>
+              
+              {/* Progress Bar */}
+              <div className="nutrition-progress">
+                <div className="progress-item">
+                  <label>Calories</label>
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill" 
+                      style={{ width: `${Math.min(day.nutritionProgress?.calories || 0, 100)}%` }}
+                    ></div>
+                  </div>
+                  <span>{day.nutritionProgress?.calories || 0}%</span>
+                </div>
+                <div className="progress-item">
+                  <label>Protein</label>
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill protein" 
+                      style={{ width: `${Math.min(day.nutritionProgress?.protein || 0, 100)}%` }}
+                    ></div>
+                  </div>
+                  <span>{day.nutritionProgress?.protein || 0}%</span>
+                </div>
+                <div className="progress-item">
+                  <label>Carbs</label>
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill carbs" 
+                      style={{ width: `${Math.min(day.nutritionProgress?.carbohydrates || 0, 100)}%` }}
+                    ></div>
+                  </div>
+                  <span>{day.nutritionProgress?.carbohydrates || 0}%</span>
+                </div>
+                <div className="progress-item">
+                  <label>Fat</label>
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill fat" 
+                      style={{ width: `${Math.min(day.nutritionProgress?.fat || 0, 100)}%` }}
+                    ></div>
+                  </div>
+                  <span>{day.nutritionProgress?.fat || 0}%</span>
+                </div>
+              </div>
             </div>
           ))}
+          
+          <div className="meal-plan-actions">
+            <button 
+              className="regenerate-button"
+              onClick={() => setShowGenerateForm(true)}
+            >
+              <FaPlus /> Generate New Plan
+            </button>
+          </div>
         </div>
       )}
 
