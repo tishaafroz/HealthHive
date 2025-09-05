@@ -305,4 +305,3 @@ const RecipeSearch = () => {
 
 export default RecipeSearch;
 
-/* Duplicate RecipeSearch component removed to fix redeclaration error */
